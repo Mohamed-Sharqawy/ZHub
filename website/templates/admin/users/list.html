@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}All Users{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1><i class="bi bi-people me-2"></i>All Users</h1>
+    <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Create User</a>
+</div>
+
+{% if users %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for user in users %}
+            <tr class="{{ 'table-secondary' if not user.is_active else '' }}">
+                <td>{{ user.id }}</td>
+                <td>{{ user.full_name }}</td>
+                <td>{{ user.email }}</td>
+                <td>
+                    <span class="badge bg-{{ 'danger' if user.role == 'admin' else ('primary' if user.role == 'instructor' else 'success') }}">
+                        {{ user.role|capitalize }}
+                    </span>
+                </td>
+                <td>
+                    {% if user.is_active %}
+                    <span class="badge bg-success">Active</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '—' }}</td>
+                <td class="action-btns">
+                    {% if user.role == 'student' and user.student %}
+                    <a href="{{ url_for('students.detail', student_id=user.student.id) }}" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
+                    {% elif user.role == 'instructor' and user.instructor %}
+                    <a href="{{ url_for('instructors.detail', instructor_id=user.instructor.id) }}" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
+                    {% endif %}
+                    {% if user.id != current_user.id %}
+                    <form method="POST" action="{{ url_for('admin.toggle_user', user_id=user.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-{{ 'danger' if user.is_active else 'success' }}"
+                                data-confirm="Are you sure you want to {{ 'deactivate' if user.is_active else 'activate' }} this user?"
+                                title="{{ 'Deactivate' if user.is_active else 'Activate' }}">
+                            <i class="bi bi-{{ 'x-circle' if user.is_active else 'check-circle' }}"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-people"></i>
+    <p>No users found.</p>
+</div>
+{% endif %}
+{% endblock %}

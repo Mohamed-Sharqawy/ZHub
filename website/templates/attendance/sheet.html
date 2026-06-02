@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Attendance — {{ group.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-clipboard-check me-2"></i>Attendance: {{ group.course.name }} — {{ group.name }}</h1>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label for="date" class="form-label">Date</label>
+                <input type="date" name="date" id="date" class="form-control" value="{{ selected_date }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>Load</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if enrollments %}
+<form method="POST" action="{{ url_for('attendance.mark_attendance', group_id=group.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="date" value="{{ selected_date }}">
+
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Student</th>
+                        <th class="text-center">
+                            <div class="form-check d-inline-block">
+                                <input type="checkbox" id="toggle-all-attendance" class="form-check-input attendance-checkbox">
+                                <label class="form-check-label" for="toggle-all-attendance">Present</label>
+                            </div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for enrollment in enrollments %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ enrollment.student.user.full_name }}</td>
+                    <td class="text-center">
+                        <input type="hidden" name="status_{{ enrollment.id }}" id="status_{{ enrollment.id }}"
+                               value="{{ existing.get(enrollment.id, 'absent') }}">
+                        <input type="checkbox" class="form-check-input attendance-checkbox attendance-toggle"
+                               data-enrollment-id="{{ enrollment.id }}"
+                               {{ 'checked' if existing.get(enrollment.id) == 'present' else '' }}>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Save Attendance</button>
+            <span class="text-muted ms-2">for {{ selected_date }}</span>
+        </div>
+    </div>
+</form>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-people"></i>
+    <p>No active enrollments in this group.</p>
+</div>
+{% endif %}
+{% endblock %}

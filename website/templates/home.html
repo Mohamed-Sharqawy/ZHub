@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-house-door me-2"></i>Welcome, {{ current_user.first_name }}!</h1>
+</div>
+
+{% if current_user.role == 'admin' %}
+<!-- Admin home — redirect hint -->
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card stat-card h-100" style="border-left-color: #0d6efd;">
+            <div class="card-body text-center">
+                <i class="bi bi-speedometer2 display-4 text-primary mb-2"></i>
+                <h5 class="card-title">Dashboard</h5>
+                <p class="text-muted">View system statistics and analytics.</p>
+                <a href="{{ url_for('admin.dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card h-100" style="border-left-color: #198754;">
+            <div class="card-body text-center">
+                <i class="bi bi-person-plus display-4 text-success mb-2"></i>
+                <h5 class="card-title">Create User</h5>
+                <p class="text-muted">Add new students, instructors, or admins.</p>
+                <a href="{{ url_for('admin.create_user') }}" class="btn btn-success">Create User</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card h-100" style="border-left-color: #ffc107;">
+            <div class="card-body text-center">
+                <i class="bi bi-book display-4 text-warning mb-2"></i>
+                <h5 class="card-title">Courses</h5>
+                <p class="text-muted">Manage courses, groups, and enrollments.</p>
+                <a href="{{ url_for('courses.list_courses') }}" class="btn btn-warning text-dark">View Courses</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% elif current_user.role == 'instructor' %}
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-person-badge display-4 text-primary mb-2"></i>
+                <h5>My Profile</h5>
+                <a href="{{ url_for('instructors.profile') }}" class="btn btn-primary mt-2">View Profile</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-book display-4 text-success mb-2"></i>
+                <h5>Courses</h5>
+                <a href="{{ url_for('courses.list_courses') }}" class="btn btn-success mt-2">View Courses</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% elif current_user.role == 'student' %}
+<div class="row g-4">
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-person display-4 text-primary mb-2"></i>
+                <h5>My Profile</h5>
+                <a href="{{ url_for('students.profile') }}" class="btn btn-primary mt-2">View</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-book display-4 text-success mb-2"></i>
+                <h5>My Courses</h5>
+                <a href="{{ url_for('courses.list_courses') }}" class="btn btn-success mt-2">View</a>
+            </div>
+        </div>
+    </div>
+    {% if current_user.student %}
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar-check display-4 text-info mb-2"></i>
+                <h5>Attendance</h5>
+                <a href="{{ url_for('attendance.student_summary', student_id=current_user.student.id) }}" class="btn btn-info text-white mt-2">View</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-receipt display-4 text-warning mb-2"></i>
+                <h5>Payments</h5>
+                <a href="{{ url_for('payments.student_payments', student_id=current_user.student.id) }}" class="btn btn-warning text-dark mt-2">View</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

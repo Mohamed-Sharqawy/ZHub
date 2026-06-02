@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Instructors{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1><i class="bi bi-people me-2"></i>Instructors</h1>
+    <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Instructor</a>
+</div>
+
+{% if instructors %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr><th>#</th><th>Name</th><th>Email</th><th>Specialization</th><th>Groups</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+            {% for instructor in instructors %}
+            <tr>
+                <td>{{ instructor.id }}</td>
+                <td>{{ instructor.user.full_name }}</td>
+                <td>{{ instructor.user.email }}</td>
+                <td>{{ instructor.specialization or '—' }}</td>
+                <td><span class="badge bg-primary">{{ instructor.groups.count() }}</span></td>
+                <td><a href="{{ url_for('instructors.detail', instructor_id=instructor.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-people"></i>
+    <p>No instructors found.</p>
+</div>
+{% endif %}
+{% endblock %}

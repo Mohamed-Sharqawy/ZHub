@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Enroll Student — {{ course.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-person-plus me-2"></i>Enroll Student in {{ course.name }}</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.student_id.label(class_="form-label") }}
+                        {{ form.student_id(class_="form-select") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.group_id.label(class_="form-label") }}
+                        {{ form.group_id(class_="form-select") }}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class_="btn btn-success") }}
+                        <a href="{{ url_for('courses.detail', course_id=course.id) }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

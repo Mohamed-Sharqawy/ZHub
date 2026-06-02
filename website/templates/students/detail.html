@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ student.user.full_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-person me-2"></i>{{ student.user.full_name }}</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <i class="bi bi-person-circle display-1 text-primary"></i>
+                <h4 class="mt-3">{{ student.user.full_name }}</h4>
+                <p class="text-muted">{{ student.user.email }}</p>
+                {% if student.qr_image_path %}
+                <img src="{{ url_for('serve_data_file', filename=student.qr_image_path) }}" alt="QR Code" class="qr-image mt-2">
+                {% else %}
+                <form method="POST" action="{{ url_for('qr.generate', student_id=student.id) }}" class="mt-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-primary btn-sm"><i class="bi bi-qr-code me-1"></i>Generate QR</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header"><h6 class="mb-0">Quick Actions</h6></div>
+            <div class="card-body d-grid gap-2">
+                <a href="{{ url_for('attendance.student_summary', student_id=student.id) }}" class="btn btn-outline-info"><i class="bi bi-calendar-check me-1"></i>Attendance</a>
+                <a href="{{ url_for('payments.student_payments', student_id=student.id) }}" class="btn btn-outline-success"><i class="bi bi-cash me-1"></i>Payments</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0">Personal Information</h5></div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    <tr><th style="width:35%">Phone</th><td>{{ student.user.phone or '—' }}</td></tr>
+                    <tr><th>Date of Birth</th><td>{{ student.date_of_birth or '—' }}</td></tr>
+                    <tr><th>Guardian Phone</th><td>{{ student.guardian_phone or '—' }}</td></tr>
+                    <tr><th>Status</th><td>
+                        {% if student.user.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-danger">Inactive</span>
+                        {% endif %}
+                    </td></tr>
+                    <tr><th>Notes</th><td>{{ student.notes or '—' }}</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Enrollments</h5>
+            </div>
+            <div class="card-body">
+                {% set enrollments = student.enrollments.all() %}
+                {% if enrollments %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>Course</th><th>Group</th><th>Status</th><th>Enrolled</th></tr></thead>
+                        <tbody>
+                        {% for e in enrollments %}
+                        <tr>
+                            <td><a href="{{ url_for('courses.detail', course_id=e.course.id) }}">{{ e.course.name }}</a></td>
+                            <td>{{ e.group.name }}</td>
+                            <td><span class="badge badge-{{ e.status }}">{{ e.status|capitalize }}</span></td>
+                            <td>{{ e.enrolled_at.strftime('%Y-%m-%d') }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No enrollments.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Certificate generation -->
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Certificates</h5></div>
+            <div class="card-body">
+                {% set certs = student.certificates.all() %}
+                {% if certs %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>Course</th><th>Issued</th><th>Download</th></tr></thead>
+                        <tbody>
+                        {% for cert in certs %}
+                        <tr>
+                            <td>{{ cert.course.name }}</td>
+                            <td>{{ cert.issued_at.strftime('%Y-%m-%d') }}</td>
+                            <td><a href="{{ url_for('certificates.download', cert_id=cert.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i></a></td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No certificates yet.</p>
+                {% endif %}
+
+                {% if current_user.role == 'admin' %}
+                <hr>
+                <h6>Generate Certificate</h6>
+                {% set active_enrollments = student.enrollments.filter_by(status='active').all() %}
+                {% if active_enrollments %}
+                <form method="POST" action="{{ url_for('certificates.generate') }}" class="row g-2 align-items-end">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="student_id" value="{{ student.id }}">
+                    <div class="col-auto">
+                        <select name="course_id" class="form-select form-select-sm" required>
+                            {% for e in active_enrollments %}
+                            <option value="{{ e.course.id }}">{{ e.course.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-award me-1"></i>Generate</button>
+                    </div>
+                </form>
+                {% else %}
+                <p class="text-muted small">No active enrollments for certificate generation.</p>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

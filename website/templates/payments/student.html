@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Payments — {{ student.user.full_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-receipt me-2"></i>Payments: {{ student.user.full_name }}</h1>
+</div>
+
+{% if payments %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr><th>#</th><th>Course</th><th>Type</th><th>Amount</th><th>Date</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+            {% for p in payments %}
+            <tr>
+                <td>{{ p.id }}</td>
+                <td>{{ p.course.name }}</td>
+                <td><span class="badge bg-info text-dark">{{ p.payment_type|capitalize }}</span></td>
+                <td>{{ "%.2f"|format(p.amount) }} EGP</td>
+                <td>{{ p.paid_at.strftime('%Y-%m-%d') }}</td>
+                <td>{{ p.notes or '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-cash"></i>
+    <p>No payments recorded for this student.</p>
+</div>
+{% endif %}
+{% endblock %}
