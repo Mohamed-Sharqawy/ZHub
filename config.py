@@ -32,4 +32,6 @@ class Config:
     STATIC_DIR = os.path.join(DATA_DIR, 'data')
     QR_CODES_DIR = os.path.join(STATIC_DIR, 'qrcodes')
     CERTIFICATES_DIR = os.path.join(STATIC_DIR, 'certificates')
+    STUDENT_PHOTOS_DIR = os.path.join(STATIC_DIR, 'student_photos')
+    PROJECT_MEDIA_DIR  = os.path.join(STATIC_DIR, 'project_media')
 

@@ -2,133 +2,666 @@
 {% block title %}{{ student.user.full_name }}{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1><i class="bi bi-person me-2"></i>{{ student.user.full_name }}</h1>
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1><i class="bi bi-person me-2"></i>{{ student.user.full_name }}
+        {% if student.is_minor %}
+        <span class="badge bg-warning text-dark ms-2" title="Under 18"><i class="bi bi-exclamation-triangle me-1"></i>Minor</span>
+        {% endif %}
+    </h1>
+    {% if current_user.role == 'admin' %}
+    <div class="action-btns">
+        <a href="{{ url_for('students.edit', student_id=student.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-pencil me-1"></i>Edit Info
+        </a>
+        <a href="{{ url_for('students.create_project', student_id=student.id) }}" class="btn btn-success">
+            <i class="bi bi-folder-plus me-1"></i>Add Project
+        </a>
+    </div>
+    {% endif %}
 </div>
 
-<div class="row">
-    <div class="col-md-4">
-        <div class="card mb-4">
-            <div class="card-body text-center">
-                <i class="bi bi-person-circle display-1 text-primary"></i>
-                <h4 class="mt-3">{{ student.user.full_name }}</h4>
-                <p class="text-muted">{{ student.user.email }}</p>
-                {% if student.qr_image_path %}
-                <img src="{{ url_for('serve_data_file', filename=student.qr_image_path) }}" alt="QR Code" class="qr-image mt-2">
-                {% else %}
-                <form method="POST" action="{{ url_for('qr.generate', student_id=student.id) }}" class="mt-2">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-outline-primary btn-sm"><i class="bi bi-qr-code me-1"></i>Generate QR</button>
-                </form>
-                {% endif %}
-            </div>
-        </div>
+<!-- Tab Navigation -->
+<ul class="nav nav-tabs mb-4" id="studentTabs">
+    <li class="nav-item">
+        <a class="nav-link active" id="profile-tab" data-bs-toggle="tab" href="#profile">
+            <i class="bi bi-person-lines-fill me-1"></i>Profile
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="portfolio-tab" data-bs-toggle="tab" href="#portfolio">
+            <i class="bi bi-folder2-open me-1"></i>Portfolio
+            {% if projects %}<span class="badge bg-primary ms-1">{{ projects|length }}</span>{% endif %}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="kpis-tab" data-bs-toggle="tab" href="#kpis">
+            <i class="bi bi-graph-up me-1"></i>KPIs
+        </a>
+    </li>
+    {% if current_user.role == 'admin' %}
+    <li class="nav-item">
+        <a class="nav-link" id="notes-tab" data-bs-toggle="tab" href="#notes">
+            <i class="bi bi-journal-text me-1"></i>Notes
+            {% if notes %}<span class="badge bg-secondary ms-1">{{ notes|length }}</span>{% endif %}
+        </a>
+    </li>
+    {% endif %}
+</ul>
 
-        <div class="card mb-4">
-            <div class="card-header"><h6 class="mb-0">Quick Actions</h6></div>
-            <div class="card-body d-grid gap-2">
-                <a href="{{ url_for('attendance.student_summary', student_id=student.id) }}" class="btn btn-outline-info"><i class="bi bi-calendar-check me-1"></i>Attendance</a>
-                <a href="{{ url_for('payments.student_payments', student_id=student.id) }}" class="btn btn-outline-success"><i class="bi bi-cash me-1"></i>Payments</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-8">
-        <div class="card mb-4">
-            <div class="card-header"><h5 class="mb-0">Personal Information</h5></div>
-            <div class="card-body">
-                <table class="table table-borderless mb-0">
-                    <tr><th style="width:35%">Phone</th><td>{{ student.user.phone or '—' }}</td></tr>
-                    <tr><th>Date of Birth</th><td>{{ student.date_of_birth or '—' }}</td></tr>
-                    <tr><th>Guardian Phone</th><td>{{ student.guardian_phone or '—' }}</td></tr>
-                    <tr><th>Status</th><td>
-                        {% if student.user.is_active %}
-                        <span class="badge bg-success">Active</span>
+<div class="tab-content" id="studentTabContent">
+
+    <!-- =========================================================
+         TAB 1: PROFILE
+    ========================================================== -->
+    <div class="tab-pane fade show active" id="profile">
+        <div class="row">
+            <!-- Left column: photo + QR -->
+            <div class="col-md-3">
+                <div class="card mb-4 text-center">
+                    <div class="card-body">
+                        {% if student.photo_path %}
+                        <img src="{{ url_for('serve_data_file', filename=student.photo_path) }}"
+                             alt="Profile Photo"
+                             style="width:130px;height:130px;object-fit:cover;border-radius:50%;border:3px solid #dee2e6;">
                         {% else %}
-                        <span class="badge bg-danger">Inactive</span>
+                        <i class="bi bi-person-circle display-1 text-secondary"></i>
                         {% endif %}
-                    </td></tr>
-                    <tr><th>Notes</th><td>{{ student.notes or '—' }}</td></tr>
-                </table>
+                        <h5 class="mt-3 mb-0">{{ student.user.full_name }}</h5>
+                        <p class="text-muted small">{{ student.user.email }}</p>
+                        {% if student.is_minor %}
+                        <span class="badge bg-warning text-dark mb-2">Minor</span>
+                        {% endif %}
+                        {% if current_user.role == 'admin' %}
+                        <form method="POST"
+                              action="{{ url_for('students.upload_photo', student_id=student.id) }}"
+                              enctype="multipart/form-data" class="mt-2">
+                            {{ photo_form.hidden_tag() }}
+                            {{ photo_form.photo(class_="form-control form-control-sm mb-2") }}
+                            {{ photo_form.submit(class_="btn btn-outline-primary btn-sm w-100") }}
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header"><h6 class="mb-0">Quick Actions</h6></div>
+                    <div class="card-body d-grid gap-2">
+                        <a href="{{ url_for('attendance.student_summary', student_id=student.id) }}"
+                           class="btn btn-outline-info btn-sm"><i class="bi bi-calendar-check me-1"></i>Attendance</a>
+                        <a href="{{ url_for('payments.student_payments', student_id=student.id) }}"
+                           class="btn btn-outline-success btn-sm"><i class="bi bi-cash me-1"></i>Payments</a>
+                    </div>
+                </div>
+
+                <!-- QR Code -->
+                <div class="card mb-4">
+                    <div class="card-header"><h6 class="mb-0">QR Code</h6></div>
+                    <div class="card-body text-center">
+                        {% if student.qr_image_path %}
+                        <img src="{{ url_for('serve_data_file', filename=student.qr_image_path) }}"
+                             alt="QR Code" class="qr-image">
+                        {% else %}
+                        {% if current_user.role == 'admin' %}
+                        <form method="POST" action="{{ url_for('qr.generate', student_id=student.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-qr-code me-1"></i>Generate QR
+                            </button>
+                        </form>
+                        {% else %}
+                        <p class="text-muted small mb-0">Not generated yet.</p>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right column: info tables -->
+            <div class="col-md-9">
+                <!-- Personal Info -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-person-vcard me-1"></i>Personal Information</h5>
+                        {% if current_user.role == 'admin' %}
+                        <a href="{{ url_for('students.edit', student_id=student.id) }}"
+                           class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <table class="table table-borderless table-sm mb-0">
+                                    <tr><th style="width:45%">Full Name</th><td>{{ student.user.full_name }}</td></tr>
+                                    <tr><th>Gender</th><td>{{ student.gender|capitalize if student.gender else '—' }}</td></tr>
+                                    <tr><th>Date of Birth</th><td>{{ student.date_of_birth or '—' }}
+                                        {% if student.is_minor %}<span class="badge bg-warning text-dark ms-1">Minor</span>{% endif %}
+                                    </td></tr>
+                                    <tr><th>Nationality</th><td>{{ student.nationality or '—' }}</td></tr>
+                                    <tr><th>Email</th><td>{{ student.user.email }}</td></tr>
+                                    <tr><th>Phone</th><td>{{ student.user.phone or '—' }}</td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <table class="table table-borderless table-sm mb-0">
+                                    <tr><th style="width:45%">Address</th><td>{{ student.address_line or '—' }}</td></tr>
+                                    <tr><th>City</th><td>{{ student.city or '—' }}</td></tr>
+                                    <tr><th>Country</th><td>{{ student.country or '—' }}</td></tr>
+                                    <tr><th>Parent Phone</th>
+                                        <td>
+                                            {{ student.guardian_phone or '—' }}
+                                            {% if student.is_minor and not student.guardian_phone %}
+                                            <span class="badge bg-danger ms-1">Missing!</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr><th>Emergency Contact</th><td>
+                                        {{ student.emergency_contact_name or '—' }}
+                                        {% if student.emergency_contact_phone %}
+                                        <br><small class="text-muted">{{ student.emergency_contact_phone }}</small>
+                                        {% endif %}
+                                    </td></tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Education -->
+                <div class="card mb-4">
+                    <div class="card-header"><h5 class="mb-0"><i class="bi bi-mortarboard me-1"></i>Education</h5></div>
+                    <div class="card-body">
+                        <table class="table table-borderless table-sm mb-0">
+                            <tr><th style="width:25%">School</th><td>{{ student.school_name or '—' }}</td></tr>
+                            <tr><th>Grade / Year</th><td>{{ student.grade or '—' }}</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Enrollments (unchanged from original) -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-journal-bookmark me-1"></i>Enrollments</h5>
+                    </div>
+                    <div class="card-body">
+                        {% set enrollments = student.enrollments.all() %}
+                        {% if enrollments %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead><tr><th>Course</th><th>Group</th><th>Status</th><th>Enrolled</th></tr></thead>
+                                <tbody>
+                                {% for e in enrollments %}
+                                <tr>
+                                    <td><a href="{{ url_for('courses.detail', course_id=e.course.id) }}">{{ e.course.name }}</a></td>
+                                    <td>{{ e.group.name }}</td>
+                                    <td><span class="badge badge-{{ e.status }}">{{ e.status|capitalize }}</span></td>
+                                    <td>{{ e.enrolled_at.strftime('%Y-%m-%d') }}</td>
+                                </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-0">No enrollments.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Certificates (unchanged from original) -->
+                <div class="card">
+                    <div class="card-header"><h5 class="mb-0"><i class="bi bi-award me-1"></i>Certificates</h5></div>
+                    <div class="card-body">
+                        {% set certs = student.certificates.all() %}
+                        {% if certs %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead><tr><th>Course</th><th>Issued</th><th>Download</th></tr></thead>
+                                <tbody>
+                                {% for cert in certs %}
+                                <tr>
+                                    <td>{{ cert.course.name }}</td>
+                                    <td>{{ cert.issued_at.strftime('%Y-%m-%d') }}</td>
+                                    <td><a href="{{ url_for('certificates.download', cert_id=cert.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i></a></td>
+                                </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-0">No certificates yet.</p>
+                        {% endif %}
+                        {% if current_user.role == 'admin' %}
+                        <hr>
+                        <h6>Generate Certificate</h6>
+                        {% set active_enrollments = student.enrollments.filter_by(status='active').all() %}
+                        {% if active_enrollments %}
+                        <form method="POST" action="{{ url_for('certificates.generate') }}" class="row g-2 align-items-end">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="student_id" value="{{ student.id }}">
+                            <div class="col-auto">
+                                <select name="course_id" class="form-select form-select-sm" required>
+                                    {% for e in active_enrollments %}
+                                    <option value="{{ e.course.id }}">{{ e.course.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-award me-1"></i>Generate</button>
+                            </div>
+                        </form>
+                        {% else %}
+                        <p class="text-muted small">No active enrollments.</p>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
+    </div><!-- end #profile tab -->
 
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Enrollments</h5>
-            </div>
-            <div class="card-body">
-                {% set enrollments = student.enrollments.all() %}
-                {% if enrollments %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead><tr><th>Course</th><th>Group</th><th>Status</th><th>Enrolled</th></tr></thead>
-                        <tbody>
-                        {% for e in enrollments %}
-                        <tr>
-                            <td><a href="{{ url_for('courses.detail', course_id=e.course.id) }}">{{ e.course.name }}</a></td>
-                            <td>{{ e.group.name }}</td>
-                            <td><span class="badge badge-{{ e.status }}">{{ e.status|capitalize }}</span></td>
-                            <td>{{ e.enrolled_at.strftime('%Y-%m-%d') }}</td>
-                        </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <p class="text-muted mb-0">No enrollments.</p>
-                {% endif %}
-            </div>
+
+    <!-- =========================================================
+         TAB 2: PORTFOLIO
+    ========================================================== -->
+    <div class="tab-pane fade" id="portfolio">
+        {% if current_user.role == 'admin' %}
+        <div class="mb-3 text-end">
+            <a href="{{ url_for('students.create_project', student_id=student.id) }}"
+               class="btn btn-success"><i class="bi bi-folder-plus me-1"></i>Add Project</a>
         </div>
+        {% endif %}
 
-        <!-- Certificate generation -->
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">Certificates</h5></div>
-            <div class="card-body">
-                {% set certs = student.certificates.all() %}
-                {% if certs %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead><tr><th>Course</th><th>Issued</th><th>Download</th></tr></thead>
-                        <tbody>
-                        {% for cert in certs %}
-                        <tr>
-                            <td>{{ cert.course.name }}</td>
-                            <td>{{ cert.issued_at.strftime('%Y-%m-%d') }}</td>
-                            <td><a href="{{ url_for('certificates.download', cert_id=cert.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i></a></td>
-                        </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <p class="text-muted">No certificates yet.</p>
-                {% endif %}
+        {% if projects %}
+        <div class="row g-4">
+            {% for project in projects %}
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <!-- First photo as card header image if available -->
+                    {% set first_photo = project.photos[0] if project.photos else None %}
+                    {% if first_photo %}
+                    <img src="{{ url_for('serve_data_file', filename=first_photo.file_path) }}"
+                         class="card-img-top" style="height:200px;object-fit:cover;"
+                         alt="{{ project.title }}">
+                    {% endif %}
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title mb-0">{{ project.title }}</h5>
+                            <span class="badge bg-{{
+                                'success' if project.completion_status == 'completed' else
+                                ('warning text-dark' if project.completion_status == 'partial' else
+                                ('danger' if project.completion_status == 'not_completed' else 'secondary'))
+                            }}">
+                                {{ project.completion_status|replace('_',' ')|title }}
+                            </span>
+                        </div>
+                        {% if project.description %}
+                        <p class="card-text text-muted small">{{ project.description[:150] }}{% if project.description|length > 150 %}…{% endif %}</p>
+                        {% endif %}
 
-                {% if current_user.role == 'admin' %}
-                <hr>
-                <h6>Generate Certificate</h6>
-                {% set active_enrollments = student.enrollments.filter_by(status='active').all() %}
-                {% if active_enrollments %}
-                <form method="POST" action="{{ url_for('certificates.generate') }}" class="row g-2 align-items-end">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="student_id" value="{{ student.id }}">
-                    <div class="col-auto">
-                        <select name="course_id" class="form-select form-select-sm" required>
-                            {% for e in active_enrollments %}
-                            <option value="{{ e.course.id }}">{{ e.course.name }}</option>
+                        <!-- Skills -->
+                        <div class="mb-2">
+                            {% for skill in project.skills_list %}
+                            <span class="badge bg-light text-dark border me-1 mb-1">{{ skill }}</span>
                             {% endfor %}
-                        </select>
+                        </div>
+
+                        <!-- Score -->
+                        {% if project.completion_score is not none %}
+                        <p class="mb-1"><small class="text-muted">Score: </small>
+                            <strong>{{ project.completion_score | int }}%</strong>
+                            <div class="progress mt-1" style="height:5px;">
+                                <div class="progress-bar bg-{{ 'success' if project.completion_score >= 75 else ('warning' if project.completion_score >= 50 else 'danger') }}"
+                                     style="width:{{ project.completion_score }}%"></div>
+                            </div>
+                        </p>
+                        {% endif %}
+
+                        <!-- Instructor remark -->
+                        {% if project.instructor_remark %}
+                        <p class="mt-2 mb-1"><small class="text-muted fst-italic">"{{ project.instructor_remark }}"</small></p>
+                        {% endif %}
+
+                        <!-- Media counts -->
+                        <div class="mt-2 d-flex gap-3 text-muted small">
+                            <span><i class="bi bi-images me-1"></i>{{ project.photos|length }} photo(s)</span>
+                            {% if project.videos %}<span><i class="bi bi-camera-video me-1"></i>{{ project.videos|length }} video(s)</span>{% endif %}
+                            {% if project.files %}<span><i class="bi bi-paperclip me-1"></i>{{ project.files|length }} file(s)</span>{% endif %}
+                            {% if project.project_link %}
+                            <a href="{{ project.project_link }}" target="_blank" class="text-decoration-none">
+                                <i class="bi bi-link-45deg me-1"></i>Link
+                            </a>
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="col-auto">
-                        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-award me-1"></i>Generate</button>
+                    {% if current_user.role == 'admin' %}
+                    <div class="card-footer bg-transparent d-flex gap-2">
+                        <a href="{{ url_for('students.edit_project', project_id=project.id) }}"
+                           class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1"></i>Edit</a>
+                        <form method="POST"
+                              action="{{ url_for('students.delete_project', project_id=project.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                    data-confirm="Delete this project and all its media? This cannot be undone.">
+                                <i class="bi bi-trash me-1"></i>Delete
+                            </button>
+                        </form>
                     </div>
-                </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-folder2-open"></i>
+            <p>No portfolio projects yet.{% if current_user.role == 'admin' %} Click "Add Project" to get started.{% endif %}</p>
+        </div>
+        {% endif %}
+    </div><!-- end #portfolio tab -->
+
+
+    <!-- =========================================================
+         TAB 3: KPIs
+    ========================================================== -->
+    <div class="tab-pane fade" id="kpis">
+
+        <!-- KPI Summary Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4 col-lg">
+                <div class="card stat-card h-100" style="border-left-color:#0d6efd;">
+                    <div class="card-body text-center">
+                        <div class="stat-value text-primary">{{ kpis.attendance_rate }}%</div>
+                        <div class="stat-label">Attendance Rate</div>
+                        <div class="progress mt-2" style="height:5px;">
+                            <div class="progress-bar bg-{{ 'success' if kpis.attendance_rate >= 75 else ('warning' if kpis.attendance_rate >= 50 else 'danger') }}"
+                                 style="width:{{ kpis.attendance_rate }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg">
+                <div class="card stat-card h-100" style="border-left-color:#198754;">
+                    <div class="stat-value text-success">{{ kpis.assignment_completion }}%</div>
+                    <div class="stat-label">Assignment Completion</div>
+                    <div class="progress mt-2" style="height:5px;">
+                        <div class="progress-bar bg-success" style="width:{{ kpis.assignment_completion }}%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg">
+                <div class="card stat-card h-100" style="border-left-color:#6f42c1;">
+                    <div class="card-body text-center">
+                        <div class="stat-value" style="color:#6f42c1;">
+                            {% if kpis.participation_score is not none %}{{ kpis.participation_score }}/10{% else %}N/A{% endif %}
+                        </div>
+                        <div class="stat-label">Avg Participation</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg">
+                <div class="card stat-card h-100" style="border-left-color:#0dcaf0;">
+                    <div class="card-body text-center">
+                        <div class="stat-value text-info">{{ kpis.project_completion }}%</div>
+                        <div class="stat-label">Project Completion</div>
+                        <div class="progress mt-2" style="height:5px;">
+                            <div class="progress-bar bg-info" style="width:{{ kpis.project_completion }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg">
+                <div class="card stat-card h-100" style="border-left-color:#ffc107;">
+                    <div class="card-body text-center">
+                        <div class="stat-value text-warning">
+                            {% if avg_trainer_score is not none %}{{ avg_trainer_score }}%{% else %}N/A{% endif %}
+                        </div>
+                        <div class="stat-label">Trainer Evaluation</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+
+            <!-- Assignments -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-journal-check me-1"></i>Assignments</h5>
+                        {% if current_user.role == 'admin' %}
+                        <a href="{{ url_for('admin.create_assignment') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-plus-lg me-1"></i>New Assignment
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="card-body p-0">
+                        {% if assignments %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead><tr><th>Assignment</th><th>Course</th><th>Status</th>{% if current_user.role == 'admin' %}<th></th>{% endif %}</tr></thead>
+                                <tbody>
+                                {% for asgn in assignments %}
+                                {% set sub = submission_map.get(asgn.id) %}
+                                <tr>
+                                    <td>{{ asgn.title }}</td>
+                                    <td><small>{{ asgn.course.name }}</small></td>
+                                    <td>
+                                        {% if sub %}
+                                        <span class="badge bg-{{
+                                            'success' if sub.status == 'delivered' else
+                                            ('warning text-dark' if sub.status == 'partial' else 'danger')
+                                        }}">{{ sub.status|replace('_',' ')|title }}</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Not Recorded</span>
+                                        {% endif %}
+                                    </td>
+                                    {% if current_user.role == 'admin' %}
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#submissionModal{{ asgn.id }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="p-3 text-muted">No assignments for enrolled courses yet.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trainer Evaluations -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header"><h5 class="mb-0"><i class="bi bi-star me-1"></i>Trainer Evaluations</h5></div>
+                    <div class="card-body">
+                        {% if trainer_evals %}
+                        {% for ev in trainer_evals %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <strong>{{ ev.instructor.user.full_name }}</strong><br>
+                                <small class="text-muted">{{ ev.enrollment.course.name }}</small><br>
+                                {% if ev.feedback %}<small class="text-muted fst-italic">"{{ ev.feedback }}"</small>{% endif %}
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-{{ 'success' if ev.score >= 75 else ('warning text-dark' if ev.score >= 50 else 'danger') }} fs-6">
+                                    {{ ev.score | int }}%
+                                </span>
+                            </div>
+                        </div>
+                        {% if not loop.last %}<hr class="my-2">{% endif %}
+                        {% endfor %}
+                        {% else %}
+                        <p class="text-muted mb-0">No trainer evaluations yet.</p>
+                        {% endif %}
+
+                        {% if current_user.role in ['admin', 'instructor'] %}
+                        <hr>
+                        <h6 class="text-muted small">Record / Update Evaluation</h6>
+                        <form method="POST"
+                              action="{{ url_for('students.record_trainer_evaluation', student_id=student.id) }}"
+                              novalidate>
+                            {{ eval_form.hidden_tag() }}
+                            <div class="mb-2">
+                                {{ eval_form.enrollment_id(class_="form-select form-select-sm") }}
+                            </div>
+                            <div class="mb-2">
+                                {{ eval_form.instructor_id(class_="form-select form-select-sm") }}
+                            </div>
+                            <div class="row g-2 mb-2">
+                                <div class="col-4">
+                                    {{ eval_form.score(class_="form-control form-control-sm", placeholder="Score 0–100") }}
+                                </div>
+                                <div class="col-8">
+                                    {{ eval_form.feedback(class_="form-control form-control-sm", rows=1, placeholder="Feedback (optional)") }}
+                                </div>
+                            </div>
+                            {{ eval_form.submit(class_="btn btn-sm btn-primary") }}
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- end KPI row -->
+
+        <!-- Submission modals (admin only) -->
+        {% if current_user.role == 'admin' %}
+        {% for asgn in assignments %}
+        <div class="modal fade" id="submissionModal{{ asgn.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Record Submission — {{ asgn.title }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST"
+                          action="{{ url_for('students.record_assignment_submission', student_id=student.id, assignment_id=asgn.id) }}"
+                          novalidate>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="modal-body">
+                            {% set sub = submission_map.get(asgn.id) %}
+                            <div class="mb-3">
+                                <label class="form-label">Status</label>
+                                <select name="status" class="form-select" required>
+                                    <option value="not_delivered" {{ 'selected' if not sub or sub.status == 'not_delivered' }}>Not Delivered</option>
+                                    <option value="delivered"     {{ 'selected' if sub and sub.status == 'delivered' }}>Delivered</option>
+                                    <option value="partial"       {{ 'selected' if sub and sub.status == 'partial' }}>Partially Delivered</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Notes</label>
+                                <textarea name="notes" class="form-control" rows="2">{{ sub.notes if sub and sub.notes else '' }}</textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+    </div><!-- end #kpis tab -->
+
+
+    <!-- =========================================================
+         TAB 4: NOTES (admin only)
+    ========================================================== -->
+    {% if current_user.role == 'admin' %}
+    <div class="tab-pane fade" id="notes">
+        <div class="row g-4">
+            <!-- Add Note Form -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header"><h5 class="mb-0"><i class="bi bi-plus-circle me-1"></i>Add Instructor Note</h5></div>
+                    <div class="card-body">
+                        <p class="text-muted small">Enter the note as reported by the instructor. Select the instructor and the relevant course.</p>
+                        <form method="POST"
+                              action="{{ url_for('students.add_instructor_note', student_id=student.id) }}"
+                              novalidate>
+                            {{ note_form.hidden_tag() }}
+                            <div class="mb-2">
+                                {{ note_form.instructor_id.label(class_="form-label") }}
+                                {{ note_form.instructor_id(class_="form-select form-select-sm") }}
+                            </div>
+                            <div class="mb-2">
+                                {{ note_form.course_id.label(class_="form-label") }}
+                                {{ note_form.course_id(class_="form-select form-select-sm") }}
+                            </div>
+                            <div class="mb-2">
+                                {{ note_form.body.label(class_="form-label") }}
+                                {{ note_form.body(class_="form-control form-control-sm", rows=4,
+                                                  placeholder="Write the instructor's note here...") }}
+                                {% for e in note_form.body.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                            </div>
+                            {{ note_form.submit(class_="btn btn-primary btn-sm w-100") }}
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Existing Notes -->
+            <div class="col-md-8">
+                {% if notes %}
+                {% for note in notes %}
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center py-2">
+                        <div>
+                            <strong><i class="bi bi-person-badge me-1"></i>{{ note.instructor.user.full_name }}</strong>
+                            <span class="text-muted mx-2">·</span>
+                            <span class="badge bg-info text-dark">{{ note.course.name }}</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <small class="text-muted">{{ note.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            <form method="POST"
+                                  action="{{ url_for('students.delete_instructor_note', note_id=note.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        data-confirm="Delete this note?">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="card-body py-2">
+                        <p class="mb-0">{{ note.body }}</p>
+                    </div>
+                </div>
+                {% endfor %}
                 {% else %}
-                <p class="text-muted small">No active enrollments for certificate generation.</p>
-                {% endif %}
+                <div class="empty-state">
+                    <i class="bi bi-journal-x"></i>
+                    <p>No instructor notes recorded for this student yet.</p>
+                </div>
                 {% endif %}
             </div>
         </div>
     </div>
-</div>
+    {% endif %}
+
+</div><!-- end tab-content -->
+
+<!-- Activate tab from URL hash -->
+{% block scripts %}
+{{ super() }}
+<script>
+'use strict';
+document.addEventListener('DOMContentLoaded', function () {
+    var hash = window.location.hash;
+    if (hash) {
+        var trigger = document.querySelector('#studentTabs a[href="' + hash + '"]');
+        if (trigger) { new bootstrap.Tab(trigger).show(); }
+    }
+});
+</script>
+{% endblock %}
 {% endblock %}

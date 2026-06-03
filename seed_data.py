@@ -8,7 +8,8 @@ from website import create_app
 from website.extensions import db
 from website.models import (
     User, Student, Instructor, Course, Group, Enrollment,
-    Attendance, Payment, Certificate, StudentPerformance, CourseRating, InstructorRating
+    Attendance, Payment, Certificate, StudentPerformance, CourseRating, InstructorRating, CourseSchedule,
+    StudentProject, ProjectMedia, InstructorNote, Assignment, AssignmentSubmission, TrainerEvaluation
 )
 
 # Configuration
@@ -110,8 +111,29 @@ def generate_users():
             user_id=u.id,
             date_of_birth=fake.date_of_birth(minimum_age=12, maximum_age=60),
             guardian_phone=fake.phone_number()[:20] if random.random() > 0.3 else None,
-            notes=fake.sentence() if random.random() > 0.8 else None
+            notes=fake.sentence() if random.random() > 0.8 else None,
+            # New fields:
+            gender=random.choice(['male', 'female']),
+            nationality=fake.country(),
+            address_line=fake.street_address(),
+            city=fake.city(),
+            country=fake.country(),
+            emergency_contact_name=fake.name() if random.random() > 0.3 else None,
+            emergency_contact_phone=fake.phone_number()[:20] if random.random() > 0.3 else None,
+            school_name=fake.company() + ' School' if random.random() > 0.4 else None,
+            grade=random.choice(['Grade 7','Grade 8','Grade 9','Grade 10','Grade 11','Grade 12',
+                                 'Year 1','Year 2','Year 3','Freshman','Sophomore','Junior','Senior',None]),
         )
+        
+        # Enforce guardian_phone for minors
+        from datetime import date as _date
+        if stu.date_of_birth:
+            today = _date.today()
+            age = (today.year - stu.date_of_birth.year
+                   - ((today.month, today.day) < (stu.date_of_birth.month, stu.date_of_birth.day)))
+            if age < 18 and not stu.guardian_phone:
+                stu.guardian_phone = fake.phone_number()[:20]
+
         db.session.add(stu)
         students.append(stu)
         
@@ -132,11 +154,20 @@ def generate_courses_and_groups(instructors):
 
     for i in range(NUM_COURSES):
         base_fee = random.choice([0, 500, 1000, 2000, 5000])
+        start = fake.date_between(start_date='-6m', end_date='today')
+        duration_days = random.randint(4, 16) * 7
+        end = start + timedelta(days=duration_days)
+        total_h = random.choice([20, 30, 40, 60, 80, 100])
+        num_sess = random.randint(10, int(total_h / 2))
         c = Course(
             name=f'{fake.catch_phrase()} {random.choice(["101", "Advanced", "Masterclass", "Basics"])}',
             description=fake.paragraph(),
             level=random.choice(levels),
             duration_weeks=random.randint(4, 16),
+            start_date=start,
+            end_date=end,
+            total_hours=float(total_h),
+            num_sessions=num_sess,
             reservation_fee=base_fee * 0.1,
             course_fee=base_fee,
             certificate_fee=random.choice([0, 50, 100]) if base_fee > 0 else 0,
@@ -146,6 +177,22 @@ def generate_courses_and_groups(instructors):
         db.session.add(c)
         db.session.flush()
         courses.append(c)
+
+        days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        chosen_days = random.sample(days, random.randint(1, 3))
+        for day in chosen_days:
+            start_hr = random.choice([9, 10, 14, 16, 18])
+            duration = random.choice([1, 1.5, 2, 2.5, 3])
+            end_hr_minutes = int(start_hr * 60 + duration * 60)
+            end_h = end_hr_minutes // 60
+            end_m = end_hr_minutes % 60
+            sched = CourseSchedule(
+                course_id=c.id,
+                weekday=day,
+                start_time=f'{start_hr:02d}:00',
+                end_time=f'{end_h:02d}:{end_m:02d}',
+            )
+            db.session.add(sched)
 
         # Groups for this course
         num_groups = random.randint(1, MAX_GROUPS_PER_COURSE)
@@ -390,6 +437,111 @@ def generate_ratings_and_performance(enrollments):
                     
     db.session.commit()
 
+def generate_kpi_data(students, courses, enrollments):
+    print("Generating KPI data (assignments, submissions, participation, evaluations, notes)...")
+    admin = User.query.filter_by(role='admin').first()
+
+    # --- Assignments per course ---
+    assignment_map = {}  # course_id -> list of Assignment
+    for c in courses:
+        num_asgn = random.randint(0, 4)
+        course_assignments = []
+        for i in range(num_asgn):
+            asgn = Assignment(
+                course_id=c.id,
+                title=f'{fake.bs().title()} Assignment {i+1}',
+                description=fake.sentence() if random.random() > 0.5 else None,
+                due_date=fake.date_between(start_date='-3m', end_date='today'),
+                created_by=admin.id,
+            )
+            db.session.add(asgn)
+            course_assignments.append(asgn)
+        assignment_map[c.id] = course_assignments
+    db.session.flush()
+
+    # --- Assignment Submissions per student ---
+    for e in enrollments:
+        for asgn in assignment_map.get(e.course_id, []):
+            status = random.choices(
+                ['delivered', 'partial', 'not_delivered'], weights=[60, 20, 20]
+            )[0]
+            sub = AssignmentSubmission(
+                assignment_id=asgn.id,
+                student_id=e.student_id,
+                status=status,
+                recorded_by=admin.id,
+            )
+            db.session.add(sub)
+
+    db.session.commit()
+
+    # --- Participation scores on existing Attendance records ---
+    from website.models import Attendance as Att
+    all_att = Att.query.all()
+    for att in all_att:
+        if att.status == 'present' and random.random() > 0.3:
+            att.participation_score = round(random.uniform(5.0, 10.0), 1)
+    db.session.commit()
+
+    # --- Trainer Evaluations ---
+    for e in enrollments:
+        if e.status == 'completed' and random.random() > 0.4:
+            if e.group.instructor:
+                existing = TrainerEvaluation.query.filter_by(
+                    enrollment_id=e.id, instructor_id=e.group.instructor_id
+                ).first()
+                if not existing:
+                    ev = TrainerEvaluation(
+                        student_id=e.student_id,
+                        enrollment_id=e.id,
+                        instructor_id=e.group.instructor_id,
+                        score=round(random.uniform(50.0, 100.0), 1),
+                        feedback=fake.sentence() if random.random() > 0.5 else None,
+                        evaluated_by=admin.id,
+                    )
+                    db.session.add(ev)
+    db.session.commit()
+
+    # --- Portfolio Projects ---
+    skills_pool = ['Python','Flask','HTML','CSS','JavaScript','React','SQL',
+                   'Photoshop','Illustrator','UI Design','Data Analysis',
+                   'Machine Learning','Arduino','3D Modeling','Video Editing']
+    for s in random.sample(students, min(len(students), 100)):
+        num_proj = random.randint(0, 3)
+        for i in range(num_proj):
+            skills = random.sample(skills_pool, random.randint(2, 5))
+            proj = StudentProject(
+                student_id=s.id,
+                title=fake.catch_phrase(),
+                description=fake.paragraph() if random.random() > 0.3 else None,
+                skills_used=', '.join(skills),
+                project_link=fake.url() if random.random() > 0.6 else None,
+                completion_status=random.choice(['completed','partial','not_completed','not_evaluated']),
+                completion_score=round(random.uniform(50, 100), 1) if random.random() > 0.4 else None,
+                instructor_remark=fake.sentence() if random.random() > 0.5 else None,
+                created_by=admin.id,
+            )
+            db.session.add(proj)
+    db.session.commit()
+
+    # --- Instructor Notes ---
+    all_instructors = Instructor.query.all()
+    all_courses = Course.query.filter_by(is_active=True).all()
+    for s in random.sample(students, min(len(students), 80)):
+        num_notes = random.randint(0, 3)
+        for _ in range(num_notes):
+            note = InstructorNote(
+                student_id=s.id,
+                instructor_id=random.choice(all_instructors).id,
+                course_id=random.choice(all_courses).id,
+                body=fake.paragraph(),
+                created_by=admin.id,
+            )
+            db.session.add(note)
+    db.session.commit()
+    print("KPI data generation complete.")
+
+
 if __name__ == '__main__':
     with app.app_context():
         clear_db()
@@ -399,4 +551,5 @@ if __name__ == '__main__':
         generate_attendance(groups, enrollments)
         generate_payments_and_certificates(enrollments)
         generate_ratings_and_performance(enrollments)
+        generate_kpi_data(students, courses, enrollments)
         print("Data generation complete!")

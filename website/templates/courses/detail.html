@@ -22,6 +22,18 @@
                     <tr><th>Level</th><td><span class="badge bg-info text-dark">{{ course.level or 'N/A' }}</span></td></tr>
                     <tr><th>Duration</th><td>{{ course.duration_weeks or '—' }} weeks</td></tr>
                     <tr><th>Status</th><td><span class="badge bg-{{ 'success' if course.is_active else 'secondary' }}">{{ 'Active' if course.is_active else 'Inactive' }}</span></td></tr>
+                    {% if course.start_date %}
+                    <tr><th>Start Date</th><td>{{ course.start_date.strftime('%Y-%m-%d') }}</td></tr>
+                    {% endif %}
+                    {% if course.end_date %}
+                    <tr><th>End Date</th><td>{{ course.end_date.strftime('%Y-%m-%d') }}</td></tr>
+                    {% endif %}
+                    {% if course.total_hours %}
+                    <tr><th>Total Hours</th><td>{{ course.total_hours | int }} h</td></tr>
+                    {% endif %}
+                    {% if course.num_sessions %}
+                    <tr><th>Sessions</th><td>{{ course.num_sessions }}</td></tr>
+                    {% endif %}
                 </table>
             </div>
         </div>
@@ -43,6 +55,30 @@
         <div class="card mb-4">
             <div class="card-body">
                 <p class="mb-0">{{ course.description }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% set schedule_list = course.schedules.all() %}
+        {% if schedule_list %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Weekly Schedule</h5></div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-borderless mb-0">
+                        <thead><tr><th>Day</th><th>Start</th><th>End</th><th>Duration</th></tr></thead>
+                        <tbody>
+                        {% for s in schedule_list %}
+                        <tr>
+                            <td><span class="badge bg-primary">{{ s.weekday }}</span></td>
+                            <td>{{ s.start_time }}</td>
+                            <td>{{ s.end_time }}</td>
+                            <td>{{ "%.1f"|format(s.duration_hours) }} h</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
         {% endif %}

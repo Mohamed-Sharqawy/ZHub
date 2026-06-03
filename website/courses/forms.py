@@ -1,6 +1,16 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, FloatField, IntegerField, SelectField, SubmitField
+from wtforms import StringField, TextAreaField, FloatField, IntegerField, SelectField, SubmitField, FieldList, FormField, DateField
 from wtforms.validators import DataRequired, Optional, NumberRange
+from wtforms import Form as BaseForm
+
+
+class ScheduleEntryForm(BaseForm):
+    weekday = SelectField('Day', choices=[
+        ('Monday', 'Monday'), ('Tuesday', 'Tuesday'), ('Wednesday', 'Wednesday'),
+        ('Thursday', 'Thursday'), ('Friday', 'Friday'), ('Saturday', 'Saturday'), ('Sunday', 'Sunday')
+    ])
+    start_time = StringField('Start Time', validators=[Optional()])
+    end_time = StringField('End Time', validators=[Optional()])
 
 
 class CourseForm(FlaskForm):
@@ -12,6 +22,11 @@ class CourseForm(FlaskForm):
         ('advanced', 'Advanced'),
     ], validators=[DataRequired()])
     duration_weeks = IntegerField('Duration (weeks)', validators=[Optional(), NumberRange(min=1)])
+    start_date = DateField('Start Date', validators=[Optional()])
+    end_date = DateField('End Date', validators=[Optional()])
+    total_hours = FloatField('Total Hours', validators=[Optional(), NumberRange(min=0.5)], default=0.0)
+    num_sessions = IntegerField('Number of Sessions', validators=[Optional(), NumberRange(min=1)])
+    schedules = FieldList(FormField(ScheduleEntryForm), min_entries=1)
     reservation_fee = FloatField('Reservation Fee', validators=[Optional()], default=0.0)
     course_fee = FloatField('Course Fee', validators=[Optional()], default=0.0)
     certificate_fee = FloatField('Certificate Fee', validators=[Optional()], default=0.0)

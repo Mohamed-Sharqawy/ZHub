@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if project else 'Add' }} Project — {{ student.user.full_name }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1>
+        <i class="bi bi-folder-plus me-2"></i>
+        {{ 'Edit Project' if project else 'Add Portfolio Project' }} — {{ student.user.full_name }}
+    </h1>
+    <a href="{{ url_for('students.detail', student_id=student.id) }}#portfolio"
+       class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+
+<div class="row">
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.title.label(class_="form-label") }}
+                        {{ form.title(class_="form-control is-invalid" if form.title.errors else "form-control") }}
+                        {% for e in form.title.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.description.label(class_="form-label") }}
+                        {{ form.description(class_="form-control", rows=3) }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.skills_used.label(class_="form-label") }}
+                        {{ form.skills_used(class_="form-control is-invalid" if form.skills_used.errors else "form-control",
+                                            placeholder="e.g. Python, Flask, HTML, CSS, JavaScript") }}
+                        <div class="form-text">{{ form.skills_used.description }}</div>
+                        {% for e in form.skills_used.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.project_link.label(class_="form-label") }}
+                        {{ form.project_link(class_="form-control", placeholder="https://drive.google.com/... or https://github.com/...") }}
+                        <div class="form-text">Optional — Google Drive, GitHub, or any public URL.</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.completion_status.label(class_="form-label") }}
+                            {{ form.completion_status(class_="form-select") }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.completion_score.label(class_="form-label") }}
+                            {{ form.completion_score(class_="form-control", placeholder="0–100") }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.instructor_remark.label(class_="form-label") }}
+                        {{ form.instructor_remark(class_="form-control", rows=2) }}
+                    </div>
+
+                    <hr>
+                    <h6 class="text-muted mb-3"><i class="bi bi-images me-1"></i>Media</h6>
+
+                    <div class="mb-3">
+                        {{ form.photos.label(class_="form-label") }}
+                        <span class="badge bg-danger ms-1">Required</span>
+                        {{ form.photos(class_="form-control", multiple=True) }}
+                        <div class="form-text">Accepted: jpg, jpeg, png, gif, webp</div>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.videos.label(class_="form-label") }}
+                        {{ form.videos(class_="form-control", multiple=True) }}
+                        <div class="form-text">Optional — mp4, mov, avi, mkv, webm</div>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.files.label(class_="form-label") }}
+                        {{ form.files(class_="form-control", multiple=True) }}
+                        <div class="form-text">Optional — pdf, doc, docx, zip, pptx, xlsx, txt</div>
+                    </div>
+
+                    {% if project %}
+                    <!-- Show existing media with delete buttons -->
+                    {% set existing_photos = project.photos %}
+                    {% if existing_photos %}
+                    <div class="mb-3">
+                        <label class="form-label">Existing Photos</label>
+                        <div class="d-flex flex-wrap gap-2">
+                        {% for m in existing_photos %}
+                        <div class="position-relative">
+                            <img src="{{ url_for('serve_data_file', filename=m.file_path) }}"
+                                 style="width:100px;height:100px;object-fit:cover;border-radius:6px;">
+                            <form method="POST"
+                                  action="{{ url_for('students.delete_project_media', media_id=m.id) }}"
+                                  class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm position-absolute top-0 end-0"
+                                        style="padding:0 4px;"
+                                        data-confirm="Remove this photo?">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+
+                    <div class="d-flex gap-2 mt-3">
+                        {{ form.submit(class_="btn btn-primary") }}
+                        <a href="{{ url_for('students.detail', student_id=student.id) }}#portfolio"
+                           class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

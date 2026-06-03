@@ -7,8 +7,9 @@ from .forms import UserCreateForm
 from ..extensions import db
 from ..models import (
     User, Student, Instructor, Course, Enrollment, Payment,
-    Attendance, Certificate, Group
+    Attendance, Certificate, Group, Assignment
 )
+from ..students.forms import AssignmentForm
 from ..utils import role_required
 
 
@@ -123,3 +124,25 @@ def report_attendance():
             'rate': rate,
         })
     return render_template('admin/reports/attendance.html', report_data=report_data)
+
+
+@admin_bp.route('/assignments/create', methods=['GET', 'POST'])
+@role_required('admin')
+def create_assignment():
+    form = AssignmentForm()
+    courses = Course.query.filter_by(is_active=True).all()
+    form.course_id.choices = [(c.id, c.name) for c in courses]
+
+    if form.validate_on_submit():
+        assignment = Assignment(
+            course_id=form.course_id.data,
+            title=form.title.data,
+            description=form.description.data,
+            due_date=form.due_date.data,
+            created_by=current_user.id
+        )
+        db.session.add(assignment)
+        db.session.commit()
+        flash('Assignment created successfully.', 'success')
+        return redirect(url_for('admin.dashboard'))
+    return render_template('admin/assignment_form.html', form=form)

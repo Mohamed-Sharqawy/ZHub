@@ -55,11 +55,39 @@ class Student(db.Model):
     guardian_phone = db.Column(db.String(20))
     notes = db.Column(db.Text)
 
+    # Extended personal info
+    photo_path              = db.Column(db.String(256), nullable=True)
+    gender                  = db.Column(db.String(20), nullable=True)    # 'male', 'female', 'prefer_not_to_say'
+    nationality             = db.Column(db.String(100), nullable=True)
+    address_line            = db.Column(db.Text, nullable=True)
+    city                    = db.Column(db.String(100), nullable=True)
+    country                 = db.Column(db.String(100), nullable=True)
+    emergency_contact_name  = db.Column(db.String(150), nullable=True)
+    emergency_contact_phone = db.Column(db.String(30), nullable=True)
+    school_name             = db.Column(db.String(200), nullable=True)
+    grade                   = db.Column(db.String(50), nullable=True)
+
+    @property
+    def is_minor(self):
+        """Returns True if the student is under 18 years old based on date_of_birth."""
+        if not self.date_of_birth:
+            return False
+        from datetime import date
+        today = date.today()
+        age = (today.year - self.date_of_birth.year
+               - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)))
+        return age < 18
+
     enrollments = db.relationship('Enrollment', backref='student', lazy='dynamic', cascade='all, delete-orphan')
     payments = db.relationship('Payment', backref='student', lazy='dynamic', cascade='all, delete-orphan')
     certificates = db.relationship('Certificate', backref='student', lazy='dynamic', cascade='all, delete-orphan')
     course_ratings = db.relationship('CourseRating', backref='student', lazy='dynamic', cascade='all, delete-orphan')
     instructor_ratings = db.relationship('InstructorRating', backref='student', lazy='dynamic', cascade='all, delete-orphan')
+
+    projects         = db.relationship('StudentProject', backref='student', lazy='dynamic', cascade='all, delete-orphan')
+    instructor_notes = db.relationship('InstructorNote', backref='student', lazy='dynamic', cascade='all, delete-orphan')
+    trainer_evals    = db.relationship('TrainerEvaluation', backref='student', lazy='dynamic', cascade='all, delete-orphan')
+    submissions      = db.relationship('AssignmentSubmission', backref='student', lazy='dynamic', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Student {self.user.full_name}>'
@@ -99,13 +127,43 @@ class Course(db.Model):
     certificate_fee = db.Column(db.Float, default=0.0)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    start_date = db.Column(db.Date, nullable=True)
+    end_date = db.Column(db.Date, nullable=True)
+    total_hours = db.Column(db.Float, nullable=True)
+    num_sessions = db.Column(db.Integer, nullable=True)
 
     groups = db.relationship('Group', backref='course', lazy='dynamic', cascade='all, delete-orphan')
     enrollments = db.relationship('Enrollment', backref='course', lazy='dynamic', cascade='all, delete-orphan')
     ratings = db.relationship('CourseRating', backref='course', lazy='dynamic', cascade='all, delete-orphan')
+    schedules = db.relationship('CourseSchedule', backref='course', lazy='dynamic', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Course {self.name}>'
+
+
+# ---------------------------------------------------------------------------
+# Course Schedule
+# ---------------------------------------------------------------------------
+class CourseSchedule(db.Model):
+    __tablename__ = 'course_schedules'
+
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False, index=True)
+    weekday = db.Column(db.String(20), nullable=False)
+    start_time = db.Column(db.String(5), nullable=False)
+    end_time = db.Column(db.String(5), nullable=False)
+
+    @property
+    def duration_hours(self):
+        from datetime import datetime
+        start = datetime.strptime(self.start_time, '%H:%M').time()
+        end = datetime.strptime(self.end_time, '%H:%M').time()
+        start_minutes = start.hour * 60 + start.minute
+        end_minutes = end.hour * 60 + end.minute
+        return (end_minutes - start_minutes) / 60.0
+
+    def __repr__(self):
+        return f'<CourseSchedule course={self.course_id} {self.weekday} {self.start_time}-{self.end_time}>'
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +228,8 @@ class Attendance(db.Model):
     date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(10), nullable=False, default='absent')  # present / absent
     marked_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    participation_score = db.Column(db.Float, nullable=True)
+    # Float 0.0–10.0, null means not recorded for this session
 
     __table_args__ = (
         db.UniqueConstraint('enrollment_id', 'date', name='uq_enrollment_date'),
@@ -275,3 +335,165 @@ class Certificate(db.Model):
 
     def __repr__(self):
         return f'<Certificate student={self.student_id} course={self.course_id}>'
+
+
+# ---------------------------------------------------------------------------
+# StudentProject (Portfolio)
+# ---------------------------------------------------------------------------
+class StudentProject(db.Model):
+    __tablename__ = 'student_projects'
+
+    id                = db.Column(db.Integer, primary_key=True)
+    student_id        = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    title             = db.Column(db.String(200), nullable=False)
+    description       = db.Column(db.Text, nullable=True)
+    skills_used       = db.Column(db.Text, nullable=False)
+    # Comma-separated skill names, e.g. "Python,Flask,HTML,CSS"
+    project_link      = db.Column(db.String(500), nullable=True)
+    # Optional URL (Google Drive link, GitHub, etc.)
+    completion_status = db.Column(db.String(30), nullable=False, default='not_evaluated')
+    # Values: 'completed', 'partial', 'not_completed', 'not_evaluated'
+    completion_score  = db.Column(db.Float, nullable=True)
+    # 0.0–100.0, set by instructor/admin; null means not yet scored
+    instructor_remark = db.Column(db.Text, nullable=True)
+    # Short instructor remark specific to this project
+    created_by        = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at        = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    media = db.relationship('ProjectMedia', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+
+    @property
+    def skills_list(self):
+        """Return skills_used as a Python list, stripping whitespace."""
+        if not self.skills_used:
+            return []
+        return [s.strip() for s in self.skills_used.split(',') if s.strip()]
+
+    @property
+    def photos(self):
+        return self.media.filter_by(media_type='photo').all()
+
+    @property
+    def videos(self):
+        return self.media.filter_by(media_type='video').all()
+
+    @property
+    def files(self):
+        return self.media.filter_by(media_type='file').all()
+
+    def __repr__(self):
+        return f'<StudentProject {self.title} student={self.student_id}>'
+
+
+# ---------------------------------------------------------------------------
+# ProjectMedia (Photos / Videos / Files for a StudentProject)
+# ---------------------------------------------------------------------------
+class ProjectMedia(db.Model):
+    __tablename__ = 'project_media'
+
+    id                = db.Column(db.Integer, primary_key=True)
+    project_id        = db.Column(db.Integer, db.ForeignKey('student_projects.id'), nullable=False, index=True)
+    media_type        = db.Column(db.String(10), nullable=False)
+    # Values: 'photo', 'video', 'file'
+    file_path         = db.Column(db.String(256), nullable=False)
+    # Path relative to STATIC_DIR, e.g. 'project_media/photo_123_abc.jpg'
+    original_filename = db.Column(db.String(256), nullable=True)
+    uploaded_at       = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return f'<ProjectMedia {self.media_type} project={self.project_id}>'
+
+
+# ---------------------------------------------------------------------------
+# InstructorNote (Structured notes per instructor per course per student)
+# ---------------------------------------------------------------------------
+class InstructorNote(db.Model):
+    __tablename__ = 'instructor_notes'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    student_id    = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    instructor_id = db.Column(db.Integer, db.ForeignKey('instructors.id'), nullable=False)
+    course_id     = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
+    body          = db.Column(db.Text, nullable=False)
+    created_by    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    # The admin user who entered this note on behalf of the instructor
+    created_at    = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    instructor = db.relationship('Instructor', backref='notes_given', foreign_keys=[instructor_id])
+    course     = db.relationship('Course', backref='instructor_notes')
+
+    def __repr__(self):
+        return f'<InstructorNote student={self.student_id} instructor={self.instructor_id} course={self.course_id}>'
+
+
+# ---------------------------------------------------------------------------
+# Assignment (Task assigned to a course; students are expected to deliver)
+# ---------------------------------------------------------------------------
+class Assignment(db.Model):
+    __tablename__ = 'assignments'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    course_id   = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False, index=True)
+    title       = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    due_date    = db.Column(db.Date, nullable=True)
+    created_by  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    course      = db.relationship('Course', backref='assignments')
+    submissions = db.relationship('AssignmentSubmission', backref='assignment', lazy='dynamic', cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<Assignment {self.title} course={self.course_id}>'
+
+
+# ---------------------------------------------------------------------------
+# AssignmentSubmission (Per-student delivery record for an Assignment)
+# ---------------------------------------------------------------------------
+class AssignmentSubmission(db.Model):
+    __tablename__ = 'assignment_submissions'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('assignments.id'), nullable=False, index=True)
+    student_id    = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    status        = db.Column(db.String(20), nullable=False, default='not_delivered')
+    # Values: 'delivered', 'partial', 'not_delivered'
+    notes         = db.Column(db.Text, nullable=True)
+    recorded_by   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    recorded_at   = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        db.UniqueConstraint('assignment_id', 'student_id', name='uq_assignment_student'),
+    )
+
+    def __repr__(self):
+        return f'<AssignmentSubmission assignment={self.assignment_id} student={self.student_id} {self.status}>'
+
+
+# ---------------------------------------------------------------------------
+# TrainerEvaluation (Overall score given by instructor for a student in a course)
+# ---------------------------------------------------------------------------
+class TrainerEvaluation(db.Model):
+    __tablename__ = 'trainer_evaluations'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    student_id    = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    enrollment_id = db.Column(db.Integer, db.ForeignKey('enrollments.id'), nullable=False)
+    instructor_id = db.Column(db.Integer, db.ForeignKey('instructors.id'), nullable=True)
+    score         = db.Column(db.Float, nullable=False)
+    # 0.0–100.0 scale
+    feedback      = db.Column(db.Text, nullable=True)
+    evaluated_by  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at    = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at    = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                              onupdate=lambda: datetime.now(timezone.utc))
+
+    enrollment  = db.relationship('Enrollment', backref='trainer_evals')
+    instructor  = db.relationship('Instructor', backref='evaluations_given')
+
+    __table_args__ = (
+        db.UniqueConstraint('enrollment_id', 'instructor_id', name='uq_eval_enrollment_instructor'),
+    )
+
+    def __repr__(self):
+        return f'<TrainerEvaluation student={self.student_id} enrollment={self.enrollment_id} score={self.score}>'

@@ -14,6 +14,8 @@ def create_app():
     os.makedirs(os.path.join(DATA_DIR, 'instance'), exist_ok=True)
     os.makedirs(app.config['QR_CODES_DIR'], exist_ok=True)
     os.makedirs(app.config['CERTIFICATES_DIR'], exist_ok=True)
+    os.makedirs(app.config['STUDENT_PHOTOS_DIR'], exist_ok=True)
+    os.makedirs(app.config['PROJECT_MEDIA_DIR'], exist_ok=True)
 
     # Initialize extensions
     db.init_app(app)

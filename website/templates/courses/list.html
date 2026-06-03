@@ -26,6 +26,18 @@
                     <span class="badge bg-light text-dark">{{ course.duration_weeks }} weeks</span>
                     {% endif %}
                 </div>
+                {% if course.start_date and course.end_date %}
+                <small class="text-muted d-block mt-1">
+                    <i class="bi bi-calendar-range me-1"></i>
+                    {{ course.start_date.strftime('%d %b %Y') }} → {{ course.end_date.strftime('%d %b %Y') }}
+                </small>
+                {% endif %}
+                {% if course.total_hours %}
+                <small class="text-muted d-block">
+                    <i class="bi bi-clock me-1"></i>{{ course.total_hours | int }} h total
+                    {% if course.num_sessions %} · {{ course.num_sessions }} sessions{% endif %}
+                </small>
+                {% endif %}
                 <small class="text-muted d-block">Groups: {{ course.groups.count() }} | Enrolled: {{ course.enrollments.count() }}</small>
             </div>
             <div class="card-footer bg-transparent">
