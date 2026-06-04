@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Transactions — {{ student.user.full_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-receipt me-2"></i>Transactions: {{ student.user.full_name }}</h1>
+</div>
+
+<!-- Enrollment Financial Summary -->
+{% if enrollments %}
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-wallet2 me-1"></i>Enrollment Balance Summary</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Course</th>
+                    <th>Total Fee</th>
+                    <th>Total Paid</th>
+                    <th>Remaining Balance</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for e in enrollments %}
+            <tr>
+                <td>{{ e.course.name }}</td>
+                <td>{{ "%.2f"|format(e.total_fee) }} EGP</td>
+                <td>{{ "%.2f"|format(e.total_paid) }} EGP</td>
+                <td class="{{ 'text-danger fw-bold' if e.remaining_balance > 0 else 'text-success' }}">
+                    {{ "%.2f"|format(e.remaining_balance) }} EGP
+                </td>
+                <td>
+                    {% if e.payment_status == 'Fully Paid' %}
+                    <span class="badge bg-success">Fully Paid</span>
+                    {% elif e.payment_status == 'Partially Paid' %}
+                    <span class="badge bg-warning text-dark">Partially Paid</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Unpaid</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Transaction History -->
+{% if transactions %}
+<div class="card">
+    <div class="card-header"><i class="bi bi-clock-history me-1"></i>Transaction History</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Type</th>
+                    <th>Course</th>
+                    <th>Amount Paid</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for t in transactions %}
+            <tr>
+                <td>{{ t.id }}</td>
+                <td>{{ t.date.strftime('%Y-%m-%d') if t.date else '—' }}</td>
+                <td>
+                    {% if t.transaction_kind == 'income' %}
+                    <span class="badge bg-success">Income</span>
+                    {% else %}
+                    <span class="badge bg-danger">Expense</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if t.transaction_kind == 'income' %}
+                        {{ t.income_type|capitalize if t.income_type else '—' }}
+                    {% else %}
+                        {{ t.expense_category or '—' }}
+                    {% endif %}
+                </td>
+                <td>{{ t.course.name if t.course else '—' }}</td>
+                <td>{{ "%.2f"|format(t.amount) }} EGP</td>
+                <td>{{ t.notes or '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-arrow-left-right"></i>
+    <p>No transactions recorded for this student.</p>
+</div>
+{% endif %}
+{% endblock %}

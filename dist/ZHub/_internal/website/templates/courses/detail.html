@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}{{ course.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1><i class="bi bi-book me-2"></i>{{ course.name }}</h1>
+    {% if current_user.role == 'admin' %}
+    <div class="action-btns">
+        <a href="{{ url_for('courses.edit', course_id=course.id) }}" class="btn btn-outline-secondary"><i class="bi bi-pencil me-1"></i>Edit</a>
+        <a href="{{ url_for('courses.create_group', course_id=course.id) }}" class="btn btn-outline-primary"><i class="bi bi-plus-lg me-1"></i>Add Group</a>
+        <a href="{{ url_for('courses.enroll', course_id=course.id) }}" class="btn btn-success"><i class="bi bi-person-plus me-1"></i>Enroll Student</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0">Course Info</h5></div>
+            <div class="card-body">
+                <table class="table table-borderless table-sm mb-0">
+                    <tr><th>Level</th><td><span class="badge bg-info text-dark">{{ course.level or 'N/A' }}</span></td></tr>
+                    <tr><th>Duration</th><td>{{ course.duration_weeks or '—' }} weeks</td></tr>
+                    <tr><th>Status</th><td><span class="badge bg-{{ 'success' if course.is_active else 'secondary' }}">{{ 'Active' if course.is_active else 'Inactive' }}</span></td></tr>
+                    {% if course.start_date %}
+                    <tr><th>Start Date</th><td>{{ course.start_date.strftime('%Y-%m-%d') }}</td></tr>
+                    {% endif %}
+                    {% if course.end_date %}
+                    <tr><th>End Date</th><td>{{ course.end_date.strftime('%Y-%m-%d') }}</td></tr>
+                    {% endif %}
+                    {% if course.total_hours %}
+                    <tr><th>Total Hours</th><td>{{ course.total_hours | int }} h</td></tr>
+                    {% endif %}
+                    {% if course.num_sessions %}
+                    <tr><th>Sessions</th><td>{{ course.num_sessions }}</td></tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0">Fees</h5></div>
+            <div class="card-body">
+                <table class="table table-borderless table-sm mb-0">
+                    <tr><th>Reservation</th><td>{{ "%.2f"|format(course.reservation_fee) }} EGP</td></tr>
+                    <tr><th>Course</th><td>{{ "%.2f"|format(course.course_fee) }} EGP</td></tr>
+                    <tr><th>Certificate</th><td>{{ "%.2f"|format(course.certificate_fee) }} EGP</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        {% if course.description %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <p class="mb-0">{{ course.description }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% set schedule_list = course.schedules.all() %}
+        {% if schedule_list %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Weekly Schedule</h5></div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-borderless mb-0">
+                        <thead><tr><th>Day</th><th>Start</th><th>End</th><th>Duration</th></tr></thead>
+                        <tbody>
+                        {% for s in schedule_list %}
+                        <tr>
+                            <td><span class="badge bg-primary">{{ s.weekday }}</span></td>
+                            <td>{{ s.start_time }}</td>
+                            <td>{{ s.end_time }}</td>
+                            <td>{{ "%.1f"|format(s.duration_hours) }} h</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0">Groups</h5></div>
+            <div class="card-body">
+                {% if groups %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>Name</th><th>Instructor</th><th>Schedule</th><th>Capacity</th><th>Actions</th></tr></thead>
+                        <tbody>
+                        {% for g in groups %}
+                        <tr>
+                            <td>{{ g.name }}</td>
+                            <td>{{ g.instructor.user.full_name if g.instructor else '—' }}</td>
+                            <td>{{ g.schedule_day }} {{ g.schedule_time }}</td>
+                            <td>{{ g.current_count }} / {{ g.max_capacity }}</td>
+                            <td>
+                                {% if current_user.role in ['admin', 'instructor'] %}
+                                <a href="{{ url_for('attendance.group_sheet', group_id=g.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-clipboard-check me-1"></i>Attendance</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-collection"></i>
+                    <p>No groups yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Enrolled Students</h5></div>
+            <div class="card-body">
+                {% set enrollments = course.enrollments.all() %}
+                {% if enrollments %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>Student</th><th>Group</th><th>Status</th><th>Enrolled</th></tr></thead>
+                        <tbody>
+                        {% for e in enrollments %}
+                        <tr>
+                            <td>
+                                {% if current_user.role in ['admin', 'instructor'] %}
+                                <a href="{{ url_for('students.detail', student_id=e.student.id) }}">{{ e.student.user.full_name }}</a>
+                                {% else %}
+                                {{ e.student.user.full_name }}
+                                {% endif %}
+                            </td>
+                            <td>{{ e.group.name }}</td>
+                            <td><span class="badge badge-{{ e.status }}">{{ e.status|capitalize }}</span></td>
+                            <td>{{ e.enrolled_at.strftime('%Y-%m-%d') }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No students enrolled yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

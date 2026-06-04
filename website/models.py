@@ -79,7 +79,7 @@ class Student(db.Model):
         return age < 18
 
     enrollments = db.relationship('Enrollment', backref='student', lazy='dynamic', cascade='all, delete-orphan')
-    payments = db.relationship('Payment', backref='student', lazy='dynamic', cascade='all, delete-orphan')
+    transactions = db.relationship('Transaction', backref='student', lazy='dynamic', cascade='all, delete-orphan')
     certificates = db.relationship('Certificate', backref='student', lazy='dynamic', cascade='all, delete-orphan')
     course_ratings = db.relationship('CourseRating', backref='student', lazy='dynamic', cascade='all, delete-orphan')
     instructor_ratings = db.relationship('InstructorRating', backref='student', lazy='dynamic', cascade='all, delete-orphan')
@@ -204,6 +204,13 @@ class Enrollment(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False)
     enrolled_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     status = db.Column(db.String(20), default='active')  # active / completed / dropped
+    total_fee = db.Column(db.Float, default=0.0)
+    total_paid = db.Column(db.Float, default=0.0)
+    payment_status = db.Column(db.String(20), default='Unpaid')  # Unpaid / Partially Paid / Fully Paid
+
+    @property
+    def remaining_balance(self):
+        return (self.total_fee or 0.0) - (self.total_paid or 0.0)
 
     attendance_records = db.relationship('Attendance', backref='enrollment', lazy='dynamic', cascade='all, delete-orphan')
     performance = db.relationship('StudentPerformance', backref='enrollment', uselist=False, cascade='all, delete-orphan')
@@ -299,24 +306,58 @@ class InstructorRating(db.Model):
 
 
 # ---------------------------------------------------------------------------
-# Payment
+# Transaction
 # ---------------------------------------------------------------------------
-class Payment(db.Model):
-    __tablename__ = 'payments'
+class Transaction(db.Model):
+    __tablename__ = 'transactions'
 
     id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
-    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
-    payment_type = db.Column(db.String(20), nullable=False)  # reservation / course / certificate
-    amount = db.Column(db.Float, nullable=False)
-    paid_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    received_by = db.Column(db.Integer, db.ForeignKey('users.id'))
-    notes = db.Column(db.Text)
 
-    course = db.relationship('Course', backref='payments')
+    # ── Classification ──────────────────────────────────────────────────────
+    transaction_kind = db.Column(db.String(10), nullable=False)
+    # Allowed values: 'income' | 'expense'
+
+    # ── Income-only fields (null when transaction_kind == 'expense') ────────
+    student_id   = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=True)
+    course_id    = db.Column(db.Integer, db.ForeignKey('courses.id'),  nullable=True)
+    payment_type = db.Column(db.String(20), nullable=True)
+    # Allowed values: 'reservation' | 'course' | 'certificate'
+    total_amount = db.Column(db.Float, nullable=True)
+    # The full fee expected for this payment category (e.g. 250 EGP)
+    paid_amount  = db.Column(db.Float, nullable=True)
+    # The actual amount received in this single transaction (e.g. 50 EGP)
+
+    # ── Expense-only fields (null when transaction_kind == 'income') ────────
+    expense_category    = db.Column(db.String(50), nullable=True)
+    # Allowed values: 'electricity'|'water'|'gas'|'rent'|'maintenance'|'other'
+    expense_description = db.Column(db.String(500), nullable=True)
+    # Free-text required only when expense_category == 'other'
+
+    # ── Common fields ────────────────────────────────────────────────────────
+    amount      = db.Column(db.Float, nullable=False)
+    # For income:  equals paid_amount (money received this transaction)
+    # For expense: the amount paid out
+    date        = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    recorded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    notes       = db.Column(db.Text, nullable=True)
+
+    # ── Relationships ────────────────────────────────────────────────────────
+    course = db.relationship('Course', backref=db.backref('course_transactions', lazy='dynamic'))
+
+    @property
+    def remaining_amount(self):
+        """For income transactions: how much the student still owes on this payment."""
+        if self.transaction_kind == 'income' and self.total_amount is not None:
+            return round(max(0.0, self.total_amount - (self.paid_amount or 0.0)), 2)
+        return 0.0
+
+    @property
+    def is_fully_paid(self):
+        """True if an income transaction has no remaining balance."""
+        return self.transaction_kind == 'income' and self.remaining_amount == 0.0
 
     def __repr__(self):
-        return f'<Payment student={self.student_id} type={self.payment_type} amount={self.amount}>'
+        return f'<Transaction {self.transaction_kind} amount={self.amount}>'
 
 
 # ---------------------------------------------------------------------------

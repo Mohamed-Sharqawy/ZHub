@@ -8,7 +8,7 @@ from website import create_app
 from website.extensions import db
 from website.models import (
     User, Student, Instructor, Course, Group, Enrollment,
-    Attendance, Payment, Certificate, StudentPerformance, CourseRating, InstructorRating, CourseSchedule,
+    Attendance, Transaction, Certificate, StudentPerformance, CourseRating, InstructorRating, CourseSchedule,
     StudentProject, ProjectMedia, InstructorNote, Assignment, AssignmentSubmission, TrainerEvaluation
 )
 
@@ -30,7 +30,7 @@ def clear_db():
     print("Clearing database...")
     # Delete in correct order to respect FK constraints
     Certificate.query.delete()
-    Payment.query.delete()
+    Transaction.query.delete()
     Attendance.query.delete()
     StudentPerformance.query.delete()
     CourseRating.query.delete()
@@ -321,58 +321,64 @@ def generate_attendance(groups, enrollments):
         db.session.commit()
 
 def generate_payments_and_certificates(enrollments):
-    print("Generating Payments and Certificates...")
+    print("Generating Transactions and Certificates...")
     admin = User.query.filter_by(role='admin').first()
-    
+
     for e in enrollments:
         c = e.course
         s = e.student
-        
+
         # If the course is free, maybe skip payments or just record 0
         if c.course_fee > 0:
             # Reservation fee
             if c.reservation_fee > 0 and random.random() > 0.1:
-                p_res = Payment(
+                p_res = Transaction(
                     student_id=s.id,
                     course_id=c.id,
-                    payment_type='reservation',
-                    amount=c.reservation_fee,
-                    received_by=admin.id,
-                    paid_at=e.enrolled_at
+                    transaction_kind='income',
+                    income_type='reservation',
+                    total_amount=c.reservation_fee,
+                    paid_amount=c.reservation_fee,
+                    recorded_by=admin.id,
+                    date=e.enrolled_at
                 )
                 db.session.add(p_res)
-                
+
             # Course fee (Full or partial)
             if random.random() > 0.2:
                 amount = c.course_fee if random.random() > 0.3 else c.course_fee * 0.5
-                p_course = Payment(
+                p_course = Transaction(
                     student_id=s.id,
                     course_id=c.id,
-                    payment_type='course',
-                    amount=amount,
-                    received_by=admin.id,
-                    paid_at=e.enrolled_at + timedelta(days=random.randint(1, 14))
+                    transaction_kind='income',
+                    income_type='course',
+                    total_amount=amount,
+                    paid_amount=amount,
+                    recorded_by=admin.id,
+                    date=e.enrolled_at + timedelta(days=random.randint(1, 14))
                 )
                 db.session.add(p_course)
-                
+
             # Certificate fee (Usually paid if completed)
             if e.status == 'completed' and c.certificate_fee > 0 and random.random() > 0.1:
-                p_cert = Payment(
+                p_cert = Transaction(
                     student_id=s.id,
                     course_id=c.id,
-                    payment_type='certificate',
-                    amount=c.certificate_fee,
-                    received_by=admin.id,
-                    paid_at=e.enrolled_at + timedelta(days=c.duration_weeks * 7)
+                    transaction_kind='income',
+                    income_type='certificate',
+                    total_amount=c.certificate_fee,
+                    paid_amount=c.certificate_fee,
+                    recorded_by=admin.id,
+                    date=e.enrolled_at + timedelta(days=c.duration_weeks * 7)
                 )
                 db.session.add(p_cert)
-                
+
                 # Generate Certificate
                 cert = Certificate(
                     student_id=s.id,
                     course_id=c.id,
                     file_path=f'certificates/cert_fake_{s.id}_{c.id}.pdf',
-                    issued_at=p_cert.paid_at + timedelta(days=1)
+                    issued_at=p_cert.date + timedelta(days=1)
                 )
                 db.session.add(cert)
         

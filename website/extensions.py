@@ -5,7 +5,7 @@ from flask_wtf.csrf import CSRFProtect
 
 db = SQLAlchemy()
 login_manager = LoginManager()
-migrate = Migrate()
+migrate = Migrate(render_as_batch=True)
 csrf = CSRFProtect()
 
 login_manager.login_view = 'auth.login'

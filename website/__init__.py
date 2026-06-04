@@ -46,7 +46,7 @@ def create_app():
     from .students import students_bp
     from .instructors import instructors_bp
     from .courses import courses_bp
-    from .payments import payments_bp
+    from .transactions import transactions_bp
     from .attendance import attendance_bp
     from .certificates import certificates_bp
     from .qr import qr_bp
@@ -56,7 +56,7 @@ def create_app():
     app.register_blueprint(students_bp, url_prefix='/students')
     app.register_blueprint(instructors_bp, url_prefix='/instructors')
     app.register_blueprint(courses_bp, url_prefix='/courses')
-    app.register_blueprint(payments_bp, url_prefix='/payments')
+    app.register_blueprint(transactions_bp, url_prefix='/transactions')
     app.register_blueprint(attendance_bp, url_prefix='/attendance')
     app.register_blueprint(certificates_bp, url_prefix='/certificates')
     app.register_blueprint(qr_bp, url_prefix='/qr')

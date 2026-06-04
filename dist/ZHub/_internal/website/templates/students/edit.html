@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Edit — {{ student.user.full_name }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1><i class="bi bi-pencil-square me-2"></i>Edit Profile — {{ student.user.full_name }}</h1>
+    <a href="{{ url_for('students.detail', student_id=student.id) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <h6 class="text-muted mb-3 mt-1"><i class="bi bi-person me-1"></i>Identity</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.first_name.label(class_="form-label") }}
+                            {{ form.first_name(class_="form-control is-invalid" if form.first_name.errors else "form-control") }}
+                            {% for e in form.first_name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.last_name.label(class_="form-label") }}
+                            {{ form.last_name(class_="form-control is-invalid" if form.last_name.errors else "form-control") }}
+                            {% for e in form.last_name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.gender.label(class_="form-label") }}
+                            {{ form.gender(class_="form-select") }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.date_of_birth.label(class_="form-label") }}
+                            {{ form.date_of_birth(class_="form-control", type="date", id="dob-field") }}
+                            <div id="minor-badge" class="mt-1" style="display:none;">
+                                <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Minor — guardian phone required</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.nationality.label(class_="form-label") }}
+                            {{ form.nationality(class_="form-control") }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.email.label(class_="form-label") }}
+                            {{ form.email(class_="form-control is-invalid" if form.email.errors else "form-control") }}
+                            {% for e in form.email.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted mb-3 mt-2"><i class="bi bi-geo-alt me-1"></i>Location</h6>
+                    <div class="mb-3">
+                        {{ form.address_line.label(class_="form-label") }}
+                        {{ form.address_line(class_="form-control", rows=2) }}
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.city.label(class_="form-label") }}
+                            {{ form.city(class_="form-control") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.country.label(class_="form-label") }}
+                            {{ form.country(class_="form-control") }}
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted mb-3 mt-2"><i class="bi bi-telephone me-1"></i>Contact</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.phone.label(class_="form-label") }}
+                            {{ form.phone(class_="form-control") }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" id="guardian-phone-label">
+                                {{ form.guardian_phone.label.text }}
+                                <span id="guardian-required-star" class="text-danger" style="display:none;"> *</span>
+                            </label>
+                            {{ form.guardian_phone(class_="form-control is-invalid" if form.guardian_phone.errors else "form-control", id="guardian-phone-field") }}
+                            {% for e in form.guardian_phone.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.emergency_contact_name.label(class_="form-label") }}
+                            {{ form.emergency_contact_name(class_="form-control") }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.emergency_contact_phone.label(class_="form-label") }}
+                            {{ form.emergency_contact_phone(class_="form-control") }}
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted mb-3 mt-2"><i class="bi bi-mortarboard me-1"></i>Education</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.school_name.label(class_="form-label") }}
+                            {{ form.school_name(class_="form-control") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.grade.label(class_="form-label") }}
+                            {{ form.grade(class_="form-control", placeholder="e.g. Grade 10, Year 2, Freshman") }}
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted mb-3 mt-2"><i class="bi bi-sticky me-1"></i>Internal Notes</h6>
+                    <div class="mb-3">
+                        {{ form.notes.label(class_="form-label") }}
+                        {{ form.notes(class_="form-control", rows=3) }}
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        {{ form.submit(class_="btn btn-primary") }}
+                        <a href="{{ url_for('students.detail', student_id=student.id) }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+'use strict';
+document.addEventListener('DOMContentLoaded', function () {
+    var dobField         = document.getElementById('dob-field');
+    var minorBadge       = document.getElementById('minor-badge');
+    var guardianField    = document.getElementById('guardian-phone-field');
+    var guardianStar     = document.getElementById('guardian-required-star');
+
+    function checkMinor() {
+        if (!dobField.value) { minorBadge.style.display = 'none'; guardianStar.style.display = 'none'; return; }
+        var dob   = new Date(dobField.value);
+        var today = new Date();
+        var age   = today.getFullYear() - dob.getFullYear()
+                    - ((today.getMonth() < dob.getMonth() ||
+                       (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())) ? 1 : 0);
+        var minor = age < 18;
+        minorBadge.style.display    = minor ? 'block' : 'none';
+        guardianStar.style.display  = minor ? 'inline' : 'none';
+        guardianField.required      = minor;
+    }
+    if (dobField) { dobField.addEventListener('change', checkMinor); checkMinor(); }
+});
+</script>
+{% endblock %}

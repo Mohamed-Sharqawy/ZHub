@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Record Transaction{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle me-2"></i>Record Transaction</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" novalidate id="transactionForm">
+                    {{ form.hidden_tag() }}
+
+                    <!-- Transaction Category -->
+                    <div class="mb-3">
+                        {{ form.transaction_kind.label(class_="form-label fw-bold") }}
+                        {{ form.transaction_kind(class_="form-select", id="transactionCategory") }}
+                    </div>
+
+                    <!-- ===== INCOME FIELDS ===== -->
+                    <div id="incomeFields">
+                        <div class="mb-3">
+                            {{ form.payment_type.label(class_="form-label") }}
+                            {{ form.payment_type(class_="form-select", id="incomeType") }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.student_id.label(class_="form-label") }}
+                            {{ form.student_id(class_="form-select", id="studentSelect") }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.course_id.label(class_="form-label") }}
+                            {{ form.course_id(class_="form-select", id="courseSelect") }}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                {{ form.total_amount.label(class_="form-label") }}
+                                {{ form.total_amount(class_="form-control", id="totalAmount") }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.paid_amount.label(class_="form-label") }}
+                                {{ form.paid_amount(class_="form-control", id="paidAmount") }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Remaining Amount</label>
+                                <input type="text" class="form-control" id="remainingAmount" readonly disabled>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===== EXPENSE FIELDS ===== -->
+                    <div id="expenseFields" style="display: none;">
+                        <div class="mb-3">
+                            {{ form.expense_category.label(class_="form-label") }}
+                            {{ form.expense_category(class_="form-select", id="expenseType") }}
+                        </div>
+
+                        <div class="mb-3" id="otherExpenseField" style="display: none;">
+                            {{ form.expense_description.label(class_="form-label") }}
+                            {{ form.expense_description(class_="form-control") }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.expense_amount.label(class_="form-label") }}
+                            {{ form.expense_amount(class_="form-control", id="expenseAmount") }}
+                        </div>
+                    </div>
+
+                    <!-- SHARED FIELDS -->
+                    <div class="mb-3">
+                        {{ form.date.label(class_="form-label") }}
+                        {{ form.date(class_="form-control", id="transactionDate") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.notes.label(class_="form-label") }}
+                        {{ form.notes(class_="form-control", rows=3) }}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class_="btn btn-primary") }}
+                        <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Card (right column) -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-info-circle me-1"></i>Transaction Info
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">
+                    <strong>Income:</strong> Record student payments for reservations, course fees, and certificates.<br>
+                    <strong>Expense:</strong> Record operational costs like utilities, rent, and maintenance.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categorySelect = document.getElementById('transactionCategory');
+    const incomeFields = document.getElementById('incomeFields');
+    const expenseFields = document.getElementById('expenseFields');
+    const expenseType = document.getElementById('expenseType');
+    const otherExpenseField = document.getElementById('otherExpenseField');
+    const totalAmountInput = document.getElementById('totalAmount');
+    const paidAmountInput = document.getElementById('paidAmount');
+    const remainingAmountInput = document.getElementById('remainingAmount');
+
+    // Toggle Income / Expense sections
+    function toggleCategory() {
+        const val = categorySelect.value;
+        if (val === 'income') {
+            incomeFields.style.display = '';
+            expenseFields.style.display = 'none';
+        } else {
+            incomeFields.style.display = 'none';
+            expenseFields.style.display = '';
+        }
+    }
+    categorySelect.addEventListener('change', toggleCategory);
+    toggleCategory();
+
+    // Toggle Other expense description
+    expenseType.addEventListener('change', function() {
+        otherExpenseField.style.display = (this.value === 'other') ? '' : 'none';
+    });
+
+    // Calculate Remaining
+    function calcRemaining() {
+        const total = parseFloat(totalAmountInput.value) || 0;
+        const paid = parseFloat(paidAmountInput.value) || 0;
+        remainingAmountInput.value = (total - paid).toFixed(2);
+    }
+    totalAmountInput.addEventListener('input', calcRemaining);
+    paidAmountInput.addEventListener('input', calcRemaining);
+});
+</script>
+{% endblock %}

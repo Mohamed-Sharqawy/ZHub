@@ -1,137 +1,124 @@
-"""ZHub Desktop Application — main entry point.
-
-Orchestrates:
-  1. Single-instance detection (lock file)
-  2. Runtime directory setup
-  3. Flask server startup in background thread
-  4. PyWebView window creation
-  5. Clean shutdown when window closes
 """
+desktop/main.py — ZHub Desktop Application Entry Point.
 
-import logging
+This file is referenced as the Analysis entry point in zhub.spec.
+
+Usage
+-----
+Development (no build required):
+    python run_desktop.py              ← recommended convenience wrapper
+    python -m desktop.main             ← alternative from project root
+
+Production:
+    Double-click  dist/ZHub/ZHub.exe   ← after PyInstaller build
+"""
 import os
 import sys
-
-# ---------------------------------------------------------------------------
-# Bootstrap: ensure the project root is on sys.path so that 'website' and
-# 'config' modules can be imported regardless of working directory.
-# ---------------------------------------------------------------------------
-from desktop.paths import get_base_dir, get_data_dir, ensure_data_dirs, is_frozen
-
-_project_root = get_base_dir()
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
-# Set environment variable so config.py picks up the correct data directory
-os.environ['ZHUB_DATA_DIR'] = get_data_dir()
-
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
-ensure_data_dirs()
-
-_log_file = os.path.join(get_data_dir(), 'logs', 'zhub.log')
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[
-        logging.FileHandler(_log_file, encoding='utf-8'),
-    ],
-)
-log = logging.getLogger('zhub.desktop')
-
-# ---------------------------------------------------------------------------
-# Single-instance lock
-# ---------------------------------------------------------------------------
-_LOCK_FILE = os.path.join(get_data_dir(), 'zhub.lock')
+import time
+import socket
 
 
-def _acquire_lock() -> bool:
-    """Create a lock file. Returns False if another instance is running."""
-    if os.path.exists(_LOCK_FILE):
-        # Check if the PID in the lock file is still alive
+def _bootstrap_sys_path():
+    """
+    Ensure the project root is on sys.path so that `from desktop.X import Y`
+    and `from website import create_app` resolve correctly when this file is
+    executed in development mode.
+
+    In frozen mode PyInstaller adds sys._MEIPASS to sys.path automatically,
+    so this function is a no-op in that case.
+    """
+    if getattr(sys, 'frozen', False):
+        return  # PyInstaller handles path setup automatically.
+
+    project_root = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), '..')
+    )
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+
+# Run immediately so every subsequent import can resolve correctly.
+_bootstrap_sys_path()
+
+
+def _wait_for_server(port, timeout=30):
+    """
+    Poll 127.0.0.1:port every 100 ms until a TCP connection is accepted
+    or `timeout` seconds elapse.
+
+    Returns True if the server became ready, False on timeout.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
         try:
-            with open(_LOCK_FILE, 'r') as f:
-                old_pid = int(f.read().strip())
-            # On Windows, check if process exists
-            import ctypes
-            kernel32 = ctypes.windll.kernel32
-            handle = kernel32.OpenProcess(0x0400, False, old_pid)  # PROCESS_QUERY_INFORMATION
-            if handle:
-                kernel32.CloseHandle(handle)
-                return False  # Process still running
-        except (ValueError, OSError, AttributeError):
-            pass  # Lock file is stale, continue
-
-    with open(_LOCK_FILE, 'w') as f:
-        f.write(str(os.getpid()))
-    return True
+            with socket.create_connection(('127.0.0.1', port), timeout=1):
+                return True
+        except (ConnectionRefusedError, OSError):
+            time.sleep(0.1)
+    return False
 
 
-def _release_lock():
-    """Remove the lock file."""
-    try:
-        os.remove(_LOCK_FILE)
-    except OSError:
-        pass
-
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 def main():
-    log.info('ZHub Desktop starting (PID %d)', os.getpid())
+    from desktop.paths  import get_data_dir
+    from desktop.server import start as start_server
 
-    if not _acquire_lock():
-        log.warning('Another instance is already running. Exiting.')
-        # Show a message to the user
-        try:
-            import webview
-            webview.create_window(
-                'ZHub',
-                html='<h2 style="font-family:sans-serif;text-align:center;margin-top:80px;">'
-                     'ZHub is already running.</h2>',
-                width=400, height=200,
-            )
-            webview.start()
-        except Exception:
-            pass
-        sys.exit(1)
+    # ── 1. Resolve and create the writable data directory ───────────────────
+    data_dir = get_data_dir()
+    os.makedirs(data_dir, exist_ok=True)
 
-    try:
-        from desktop.server import FlaskServer
+    # ── 2. Start the Waitress server in a background daemon thread ──────────
+    port = start_server(data_dir)
 
-        server = FlaskServer()
-        log.info('Starting Flask server on port %d', server.port)
-        server.start()
+    # ── 3. Import pywebview after the server thread has started ─────────────
+    #       (avoids rare import-order issues on some platforms)
+    import webview
 
-        if not server.wait_ready(timeout=20):
-            log.error('Flask server did not become ready. Aborting.')
-            _release_lock()
-            sys.exit(2)
+    # ── 4. Wait up to 30 s for Waitress to accept connections ───────────────
+    server_ready = _wait_for_server(port, timeout=30)
 
-        # Launch the desktop window
-        import webview
-
-        log.info('Opening PyWebView window → %s', server.url)
+    if not server_ready:
+        # Show a minimal error window so the user is not left with nothing.
         webview.create_window(
-            title='ZHub Course Center',
-            url=server.url,
-            width=1280,
-            height=800,
-            min_size=(900, 600),
-            text_select=True,
+            title='ZHub — Startup Error',
+            html=(
+                '<body style="font-family:system-ui,sans-serif;'
+                'padding:48px;background:#fff;color:#212529;">'
+                '<h2 style="color:#dc3545;">&#10060; ZHub could not start</h2>'
+                '<p>The internal server did not respond within 30 seconds.</p>'
+                '<p>Please close this window and try launching ZHub again.</p>'
+                '<p style="color:#6c757d;font-size:0.85rem;">'
+                'If the problem persists, check that no other application is '
+                'blocking localhost connections.</p>'
+                '</body>'
+            ),
+            width=540,
+            height=280,
+            resizable=False,
         )
-        # webview.start() blocks until the window is closed
         webview.start()
+        return
 
-        log.info('Window closed. Shutting down.')
+    # ── 5. Open the main application window ─────────────────────────────────
+    #
+    # text_select=True  — lets the user select and copy text in the UI.
+    # min_size          — prevents the window from being resized so small
+    #                     that the Bootstrap layout breaks.
+    # The window points at the Flask app running on localhost.
+    # Flask-Login will redirect to /login on the first request because
+    # no session cookie exists yet. This is the correct expected behaviour.
+    webview.create_window(
+        title='ZHub Course Center',
+        url=f'http://127.0.0.1:{port}/',
+        width=1280,
+        height=800,
+        min_size=(900, 600),
+        resizable=True,
+        text_select=True,
+    )
 
-    except Exception:
-        log.exception('Fatal error in desktop launcher')
-    finally:
-        _release_lock()
-        log.info('ZHub Desktop exited.')
+    # webview.start() blocks until the window is closed by the user.
+    # When it returns the process exits, killing the daemon Waitress thread.
+    webview.start()
 
 
 if __name__ == '__main__':

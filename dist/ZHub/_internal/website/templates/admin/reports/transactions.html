@@ -1,0 +1,530 @@
+{% extends "base.html" %}
+{% block title %}Transaction Report{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1><i class="bi bi-bar-chart-line me-2"></i>Transaction Report</h1>
+    <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>All Transactions
+    </a>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- SUMMARY CARDS — always reflect ALL records regardless of active filters   -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card h-100" style="border-left-color:#198754;">
+            <div class="card-body text-center">
+                <div class="stat-value text-success">{{ "%.2f"|format(total_income_received) }}</div>
+                <div class="stat-label">Income Received (EGP)</div>
+                <small class="text-muted">Actual amounts paid by students</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100" style="border-left-color:#dc3545;">
+            <div class="card-body text-center">
+                <div class="stat-value text-danger">{{ "%.2f"|format(total_expenses) }}</div>
+                <div class="stat-label">Total Expenses (EGP)</div>
+                <small class="text-muted">Operational costs paid out</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100" style="border-left-color:#ffc107;">
+            <div class="card-body text-center">
+                <div class="stat-value text-warning">{{ "%.2f"|format(total_remaining) }}</div>
+                <div class="stat-label">Outstanding Balance (EGP)</div>
+                <small class="text-muted">Still owed by students</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100"
+             style="border-left-color:{{ '#198754' if net_balance >= 0 else '#dc3545' }};">
+            <div class="card-body text-center">
+                <div class="stat-value {{ 'text-success' if net_balance >= 0 else 'text-danger' }}">
+                    {{ "%.2f"|format(net_balance) }}
+                </div>
+                <div class="stat-label">Net Balance (EGP)</div>
+                <small class="text-muted">Income received − expenses</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- CHARTS ROW 1 — Monthly timeline + overall split                           -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="row g-4 mb-4">
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-graph-up me-2"></i>Monthly Income vs Expenses
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlyChart" height="130"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart me-2"></i>Income vs Expenses
+                </h5>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <canvas id="overallSplitChart" height="210"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- CHARTS ROW 2 — Breakdown doughnuts                                        -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart-fill me-2"></i>Expenses by Category
+                </h5>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                {% if has_expense_cat_data %}
+                <canvas id="expenseCatChart" height="230"></canvas>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-pie-chart"></i>
+                    <p>No expense records yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart-fill me-2"></i>Income by Payment Type
+                </h5>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                {% if has_income_type_data %}
+                <canvas id="incomeTypeChart" height="230"></canvas>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-pie-chart"></i>
+                    <p>No income records yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- FILTER FORM — method GET so values go into URL query string               -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Filter Transactions Table</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET"
+              action="{{ url_for('admin.report_transactions') }}"
+              class="row g-3 align-items-end">
+
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">Date From</label>
+                <input type="date" name="date_from" class="form-control"
+                       value="{{ date_from_str }}">
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">Date To</label>
+                <input type="date" name="date_to" class="form-control"
+                       value="{{ date_to_str }}">
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">Type</label>
+                <select name="kind" class="form-select" id="report-kind-select">
+                    <option value="all"     {% if kind_filter == 'all'     %}selected{% endif %}>All Types</option>
+                    <option value="income"  {% if kind_filter == 'income'  %}selected{% endif %}>Income Only</option>
+                    <option value="expense" {% if kind_filter == 'expense' %}selected{% endif %}>Expense Only</option>
+                </select>
+            </div>
+
+            <div class="col-md-2"
+                 id="ptype-col"
+                 {% if kind_filter != 'income' %}style="display:none;"{% endif %}>
+                <label class="form-label fw-semibold">Payment Category</label>
+                <select name="payment_type" class="form-select">
+                    <option value="all"         {% if ptype_filter == 'all'         %}selected{% endif %}>All</option>
+                    <option value="reservation" {% if ptype_filter == 'reservation' %}selected{% endif %}>Reservation</option>
+                    <option value="course"      {% if ptype_filter == 'course'      %}selected{% endif %}>Course Fee</option>
+                    <option value="certificate" {% if ptype_filter == 'certificate' %}selected{% endif %}>Certificate</option>
+                </select>
+            </div>
+
+            <div class="col-md-2"
+                 id="ecat-col"
+                 {% if kind_filter != 'expense' %}style="display:none;"{% endif %}>
+                <label class="form-label fw-semibold">Expense Category</label>
+                <select name="expense_category" class="form-select">
+                    <option value="all"         {% if ecat_filter == 'all'         %}selected{% endif %}>All</option>
+                    <option value="electricity" {% if ecat_filter == 'electricity' %}selected{% endif %}>Electricity</option>
+                    <option value="water"       {% if ecat_filter == 'water'       %}selected{% endif %}>Water</option>
+                    <option value="gas"         {% if ecat_filter == 'gas'         %}selected{% endif %}>Gas</option>
+                    <option value="rent"        {% if ecat_filter == 'rent'        %}selected{% endif %}>Rent</option>
+                    <option value="maintenance" {% if ecat_filter == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                    <option value="other"       {% if ecat_filter == 'other'       %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel-fill"></i>
+                </button>
+            </div>
+
+            <div class="col-auto">
+                <a href="{{ url_for('admin.report_transactions') }}"
+                   class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle me-1"></i>Clear
+                </a>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- Results count label -->
+<div class="d-flex align-items-center mb-3 gap-2">
+    <h5 class="mb-0">Transactions</h5>
+    <span class="badge bg-secondary">{{ transactions|length }}</span>
+    {% if kind_filter == 'income' %}
+    <span class="badge bg-success">Income</span>
+    {% elif kind_filter == 'expense' %}
+    <span class="badge bg-danger">Expense</span>
+    {% endif %}
+    {% if date_from_str %}
+    <span class="badge bg-info text-dark">From {{ date_from_str }}</span>
+    {% endif %}
+    {% if date_to_str %}
+    <span class="badge bg-info text-dark">To {{ date_to_str }}</span>
+    {% endif %}
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TRANSACTION TABLE                                                          -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+{% if transactions %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Details</th>
+                    <th>Total Due (EGP)</th>
+                    <th>Received / Paid (EGP)</th>
+                    <th>Remaining (EGP)</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for t in transactions %}
+            <tr>
+                <td>{{ t.id }}</td>
+                <td>{{ t.date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    {% if t.transaction_kind == 'income' %}
+                    <span class="badge bg-success">Income</span>
+                    {% else %}
+                    <span class="badge bg-danger">Expense</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if t.transaction_kind == 'income' %}
+                        {% if t.student %}
+                        <a href="{{ url_for('students.detail', student_id=t.student.id) }}">
+                            {{ t.student.user.full_name }}
+                        </a>
+                        {% endif %}
+                        {% if t.course %}
+                        <br><small class="text-muted">{{ t.course.name }}</small>
+                        {% endif %}
+                        {% if t.payment_type %}
+                        <span class="badge bg-info text-dark">
+                            {{ t.payment_type|capitalize }}
+                        </span>
+                        {% endif %}
+                    {% else %}
+                        <span class="fw-semibold">
+                        {% if t.expense_category == 'electricity' %}Electricity Bill
+                        {% elif t.expense_category == 'water' %}Water Bill
+                        {% elif t.expense_category == 'gas' %}Gas Bill
+                        {% elif t.expense_category == 'rent' %}Rent
+                        {% elif t.expense_category == 'maintenance' %}Maintenance
+                        {% elif t.expense_category == 'other' %}Other
+                        {% else %}{{ t.expense_category or '—' }}
+                        {% endif %}
+                        </span>
+                        {% if t.expense_description %}
+                        <br><small class="text-muted">{{ t.expense_description }}</small>
+                        {% endif %}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if t.transaction_kind == 'income' %}
+                    {{ "%.2f"|format(t.total_amount or 0) }}
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td class="{{ 'text-success' if t.transaction_kind == 'income' else 'text-danger' }} fw-semibold">
+                    {{ "%.2f"|format(t.amount) }}
+                </td>
+                <td>
+                    {% if t.transaction_kind == 'income' %}
+                        {% if t.remaining_amount > 0 %}
+                        <span class="badge bg-warning text-dark">
+                            {{ "%.2f"|format(t.remaining_amount) }}
+                        </span>
+                        {% else %}
+                        <span class="badge bg-success">Paid in full</span>
+                        {% endif %}
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td><small class="text-muted">{{ t.notes or '—' }}</small></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-bar-chart"></i>
+    <p>No transactions match the current filters.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+'use strict';
+
+// ── Data injected from Flask (all values are JSON-safe) ───────────────────────
+var months         = {{ chart_months              | safe }};
+var incomeVals     = {{ chart_income_values       | safe }};
+var expenseVals    = {{ chart_expense_values      | safe }};
+var expCatLabels   = {{ chart_expense_cat_labels  | safe }};
+var expCatVals     = {{ chart_expense_cat_values  | safe }};
+var incTypeLabels  = {{ chart_income_type_labels  | safe }};
+var incTypeVals    = {{ chart_income_type_values  | safe }};
+var totalIncome    = {{ total_income_received }};
+var totalExpense   = {{ total_expenses }};
+
+Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+Chart.defaults.font.size   = 12;
+
+// ── Chart 1: Monthly Income vs Expenses (grouped bar) ────────────────────────
+var monthlyCtx = document.getElementById('monthlyChart');
+if (monthlyCtx) {
+    if (months.length > 0) {
+        new Chart(monthlyCtx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'Income Received (EGP)',
+                        data: incomeVals,
+                        backgroundColor: 'rgba(25, 135, 84, 0.75)',
+                        borderColor:     'rgba(25, 135, 84, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    },
+                    {
+                        label: 'Expenses (EGP)',
+                        data: expenseVals,
+                        backgroundColor: 'rgba(220, 53, 69, 0.75)',
+                        borderColor:     'rgba(220, 53, 69, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': ' +
+                                       ctx.parsed.y.toFixed(2) + ' EGP';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(val) {
+                                return val.toLocaleString() + ' EGP';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        monthlyCtx.closest('.card-body').innerHTML =
+            '<div class="empty-state"><i class="bi bi-graph-up"></i>' +
+            '<p>No monthly data available yet.</p></div>';
+    }
+}
+
+// ── Chart 2: Overall Income vs Expenses (doughnut) ───────────────────────────
+var overallCtx = document.getElementById('overallSplitChart');
+if (overallCtx) {
+    if (totalIncome > 0 || totalExpense > 0) {
+        new Chart(overallCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Income Received', 'Expenses'],
+                datasets: [{
+                    data: [totalIncome, totalExpense],
+                    backgroundColor: [
+                        'rgba(25, 135, 84, 0.8)',
+                        'rgba(220, 53, 69, 0.8)',
+                    ],
+                    borderColor: [
+                        'rgba(25, 135, 84, 1)',
+                        'rgba(220, 53, 69, 1)',
+                    ],
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.label + ': ' +
+                                       ctx.parsed.toFixed(2) + ' EGP';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        overallCtx.closest('.card-body').innerHTML =
+            '<div class="empty-state"><i class="bi bi-pie-chart"></i>' +
+            '<p>No data yet.</p></div>';
+    }
+}
+
+// ── Chart 3: Expenses by Category (doughnut) ─────────────────────────────────
+var expCatCtx = document.getElementById('expenseCatChart');
+if (expCatCtx && expCatVals.length > 0) {
+    new Chart(expCatCtx, {
+        type: 'doughnut',
+        data: {
+            labels: expCatLabels,
+            datasets: [{
+                data: expCatVals,
+                backgroundColor: [
+                    'rgba(255,  99, 132, 0.8)',
+                    'rgba( 54, 162, 235, 0.8)',
+                    'rgba(255, 206,  86, 0.8)',
+                    'rgba( 75, 192, 192, 0.8)',
+                    'rgba(153, 102, 255, 0.8)',
+                    'rgba(255, 159,  64, 0.8)',
+                ],
+                borderWidth: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return ctx.label + ': ' +
+                                   ctx.parsed.toFixed(2) + ' EGP';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ── Chart 4: Income by Payment Type (doughnut) ───────────────────────────────
+var incTypeCtx = document.getElementById('incomeTypeChart');
+if (incTypeCtx && incTypeVals.length > 0) {
+    new Chart(incTypeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: incTypeLabels,
+            datasets: [{
+                data: incTypeVals,
+                backgroundColor: [
+                    'rgba( 25, 135,  84, 0.8)',
+                    'rgba( 13, 110, 253, 0.8)',
+                    'rgba(255, 193,   7, 0.8)',
+                ],
+                borderWidth: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return ctx.label + ': ' +
+                                   ctx.parsed.toFixed(2) + ' EGP';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ── Filter UI: show/hide sub-filter columns based on kind selection ───────────
+document.addEventListener('DOMContentLoaded', function() {
+    var kindSel  = document.getElementById('report-kind-select');
+    var ptypeCol = document.getElementById('ptype-col');
+    var ecatCol  = document.getElementById('ecat-col');
+    if (!kindSel) return;
+    kindSel.addEventListener('change', function() {
+        ptypeCol.style.display = (this.value === 'income')  ? '' : 'none';
+        ecatCol.style.display  = (this.value === 'expense') ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

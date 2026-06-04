@@ -1,0 +1,119 @@
+/* ZHub Course Center — Custom Styles */
+
+/* Layout */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #f8f9fa;
+}
+
+main {
+    flex: 1;
+}
+
+/* Navbar brand */
+.navbar-brand {
+    font-size: 1.3rem;
+    letter-spacing: 0.5px;
+}
+
+/* Cards */
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+}
+
+/* Stat cards on admin dashboard */
+.stat-card {
+    border-left: 4px solid;
+    border-radius: 0.375rem;
+}
+
+.stat-card .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.stat-card .stat-label {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+}
+
+/* Tables */
+.table th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #6c757d;
+}
+
+/* Status badges */
+.badge-active { background-color: #198754; }
+.badge-completed { background-color: #0d6efd; }
+.badge-dropped { background-color: #dc3545; }
+
+/* Login page */
+.login-wrapper {
+    max-width: 420px;
+    margin: 2rem auto;
+}
+
+.login-wrapper .card {
+    border-top: 4px solid #0d6efd;
+}
+
+/* QR code image */
+.qr-image {
+    max-width: 200px;
+    border: 2px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+    background: #fff;
+}
+
+/* Attendance sheet */
+.attendance-checkbox {
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+/* Page headers */
+.page-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.page-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #212529;
+}
+
+/* Action buttons group */
+.action-btns .btn {
+    margin-right: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+}

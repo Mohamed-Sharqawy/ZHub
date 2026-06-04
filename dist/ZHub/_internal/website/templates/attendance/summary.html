@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Attendance Summary — {{ student.user.full_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-calendar-check me-2"></i>Attendance: {{ student.user.full_name }}</h1>
+</div>
+
+{% if summary %}
+<div class="row g-4">
+    {% for item in summary %}
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">{{ item.course.name }}</h5>
+                <span class="badge bg-{{ 'success' if item.percentage >= 75 else ('warning' if item.percentage >= 50 else 'danger') }}">
+                    {{ item.percentage }}%
+                </span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-2">Group: {{ item.group.name }} — {{ item.group.schedule_day }} {{ item.group.schedule_time }}</p>
+                <div class="progress mb-3" style="height: 10px;">
+                    <div class="progress-bar bg-{{ 'success' if item.percentage >= 75 else ('warning' if item.percentage >= 50 else 'danger') }}"
+                         style="width: {{ item.percentage }}%"></div>
+                </div>
+                <div class="row text-center">
+                    <div class="col">
+                        <div class="fw-bold text-success">{{ item.present }}</div>
+                        <small class="text-muted">Present</small>
+                    </div>
+                    <div class="col">
+                        <div class="fw-bold text-danger">{{ item.total - item.present }}</div>
+                        <small class="text-muted">Absent</small>
+                    </div>
+                    <div class="col">
+                        <div class="fw-bold">{{ item.total }}</div>
+                        <small class="text-muted">Total</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-calendar-x"></i>
+    <p>No attendance records found.</p>
+</div>
+{% endif %}
+{% endblock %}

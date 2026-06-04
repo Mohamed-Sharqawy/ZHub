@@ -35,11 +35,12 @@ def get_attendance_percentage(enrollment):
 
 def has_paid(student, course, payment_type):
     """Check if a student has made a specific payment for a course."""
-    from .models import Payment
-    return Payment.query.filter_by(
+    from .models import Transaction
+    return Transaction.query.filter_by(
         student_id=student.id,
         course_id=course.id,
-        payment_type=payment_type
+        income_type=payment_type,
+        transaction_kind='income'
     ).first() is not None
 
 

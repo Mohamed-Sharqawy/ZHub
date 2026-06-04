@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Transactions{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1><i class="bi bi-arrow-left-right me-2"></i>All Transactions</h1>
+    <a href="{{ url_for('transactions.record_transaction') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Record Transaction</a>
+</div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- FILTER FORM                                                         -->
+    <!-- method="GET" is mandatory: it puts the selected value into the URL  -->
+    <!-- query string (?kind=income) which request.args can read correctly.  -->
+    <!-- method="POST" would break the filter — do not change it.           -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="card mb-4">
+        <div class="card-body py-3">
+            <form method="GET"
+                  action="{{ url_for('transactions.list_transactions') }}"
+                  class="row g-2 align-items-end">
+
+                <div class="col-auto">
+                    <label for="kind-select" class="form-label mb-1 fw-semibold">
+                        <i class="bi bi-funnel me-1"></i>Show
+                    </label>
+                    <select id="kind-select"
+                            name="kind"
+                            class="form-select">
+                        <option value="all"
+                                {% if kind_filter == 'all' %}selected{% endif %}>
+                            All Transactions
+                        </option>
+                        <option value="income"
+                                {% if kind_filter == 'income' %}selected{% endif %}>
+                            Income Only
+                        </option>
+                        <option value="expense"
+                                {% if kind_filter == 'expense' %}selected{% endif %}>
+                            Expenses Only
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-funnel-fill me-1"></i>Filter
+                    </button>
+                </div>
+
+                {% if kind_filter != 'all' %}
+                <div class="col-auto">
+                    <a href="{{ url_for('transactions.list_transactions') }}"
+                       class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle me-1"></i>Clear Filter
+                    </a>
+                </div>
+                {% endif %}
+
+                <div class="col-auto ms-auto">
+                    <span class="text-muted small">
+                        Showing {{ transactions|length }} transaction(s)
+                        {% if kind_filter == 'income' %}
+                            <span class="badge bg-success ms-1">Income</span>
+                        {% elif kind_filter == 'expense' %}
+                            <span class="badge bg-danger ms-1">Expenses</span>
+                        {% endif %}
+                    </span>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+{% if transactions %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Type</th>
+                    <th>Student</th>
+                    <th>Course</th>
+                    <th>Amount</th>
+                    <th>Remaining</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for t in transactions %}
+            <tr>
+                <td>{{ t.id }}</td>
+                <td>{{ t.date.strftime('%Y-%m-%d') if t.date else '—' }}</td>
+                <td>
+                    {% if t.transaction_kind == 'income' %}
+                    <span class="badge bg-success">Income</span>
+                    {% else %}
+                    <span class="badge bg-danger">Expense</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if t.transaction_kind == 'income' %}
+                        <span class="badge bg-info text-dark">{{ t.income_type|capitalize if t.income_type else '—' }}</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark">{{ t.expense_category or '—' }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ t.student.user.full_name if t.student else '—' }}</td>
+                <td>{{ t.course.name if t.course else '—' }}</td>
+                <td>{{ "%.2f"|format(t.amount) }} EGP</td>
+                <td>
+                    {% if t.transaction_kind == 'income' and t.total_amount is not none %}
+                        {{ "%.2f"|format(t.remaining_amount) }} EGP
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>{{ t.notes or '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-arrow-left-right"></i>
+    <p>No transactions recorded yet.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -8,7 +8,7 @@ from reportlab.pdfgen import canvas
 
 from . import certificates_bp
 from ..extensions import db
-from ..models import Certificate, Student, Course, Payment
+from ..models import Certificate, Student, Course, Transaction
 from ..utils import role_required
 
 
@@ -30,10 +30,11 @@ def generate():
     course = Course.query.get_or_404(course_id)
 
     # Check certificate fee has been paid
-    cert_payment = Payment.query.filter_by(
+    cert_payment = Transaction.query.filter_by(
         student_id=student.id,
         course_id=course.id,
-        payment_type='certificate'
+        income_type='certificate',
+        transaction_kind='income'
     ).first()
 
     if not cert_payment:
