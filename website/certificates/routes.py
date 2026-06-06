@@ -33,8 +33,6 @@ def generate():
     cert_payment = Transaction.query.filter_by(
         student_id=student.id,
         course_id=course.id,
-        income_type='certificate',
-        transaction_kind='income'
     ).first()
 
     if not cert_payment:
