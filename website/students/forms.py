@@ -17,7 +17,7 @@ class StudentEditForm(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired(), Length(max=100)])
     last_name  = StringField('Last Name',  validators=[DataRequired(), Length(max=100)])
     phone      = StringField('Phone Number', validators=[Optional(), Length(max=20)])
-    email      = StringField('Email Address', validators=[DataRequired(), Email(), Length(max=150)])
+    email      = StringField('Email Address', validators=[Optional(), Email(), Length(max=150)])
 
     # Fields directly on Student model
     gender       = SelectField('Gender', choices=[

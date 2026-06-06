@@ -126,18 +126,20 @@ def edit(student_id):
             )
             return render_template('students/edit.html', form=form, student=student)
 
-        # --- Email uniqueness check (skip if same user) ---
+        # --- Email uniqueness check (only when an email was provided) ---
         from ..models import User
-        existing = User.query.filter_by(email=form.email.data).first()
-        if existing and existing.id != user.id:
-            flash('This email address is already in use by another account.', 'danger')
-            return render_template('students/edit.html', form=form, student=student)
+        if form.email.data:
+            existing = User.query.filter_by(email=form.email.data).first()
+            if existing and existing.id != user.id:
+                flash('This email address is already in use by another account.', 'danger')
+                return render_template('students/edit.html', form=form, student=student)
 
         # --- Update User fields ---
         user.first_name = form.first_name.data
         user.last_name  = form.last_name.data
         user.phone      = form.phone.data
-        user.email      = form.email.data
+        # Store NULL when the admin leaves email blank, not an empty string.
+        user.email = form.email.data or None
 
         # --- Update Student fields ---
         student.gender                  = form.gender.data or None

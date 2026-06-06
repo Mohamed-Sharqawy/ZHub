@@ -45,7 +45,10 @@
                             {{ form.nationality(class_="form-control") }}
                         </div>
                         <div class="col-md-4 mb-3">
-                            {{ form.email.label(class_="form-label") }}
+                            <label class="form-label">
+                                Email Address
+                                <small class="text-muted fw-normal">(optional)</small>
+                            </label>
                             {{ form.email(class_="form-control is-invalid" if form.email.errors else "form-control") }}
                             {% for e in form.email.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
                         </div>

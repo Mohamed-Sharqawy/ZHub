@@ -25,6 +25,8 @@ a = Analysis(
         ('website/static', 'website/static'),
         # Config module
         ('config.py', '.'),
+        # Migrations folder (for database schema updates)
+        ('migrations', 'migrations'),
     ],
     hiddenimports=[
         # Flask and extensions

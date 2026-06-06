@@ -55,31 +55,52 @@ def list_users():
 def create_user():
     form = UserCreateForm()
     if form.validate_on_submit():
-        # Check unique email
-        if User.query.filter_by(email=form.email.data).first():
-            flash('A user with this email already exists.', 'danger')
+        role = form.role.data
+
+        # ── Email: required for admin and instructor, optional for student ──
+        if role in ('admin', 'instructor') and not form.email.data:
+            flash('Email is required for admin and instructor accounts.', 'danger')
             return render_template('admin/users/create.html', form=form)
 
+        # ── Email uniqueness check (only when an email was provided) ────────
+        if form.email.data:
+            if User.query.filter_by(email=form.email.data).first():
+                flash('A user with this email already exists.', 'danger')
+                return render_template('admin/users/create.html', form=form)
+
+        # ── School and grade: mandatory for student accounts ─────────────────
+        if role == 'student':
+            if not form.school_name.data or not form.school_name.data.strip():
+                flash('School name is required for student accounts.', 'danger')
+                return render_template('admin/users/create.html', form=form)
+            if not form.grade.data or not form.grade.data.strip():
+                flash('Grade / Year is required for student accounts.', 'danger')
+                return render_template('admin/users/create.html', form=form)
+
+        # ── Create User record ───────────────────────────────────────────────
+        # email is stored as NULL (not empty string) when not provided.
         user = User(
-            email=form.email.data,
+            email=form.email.data or None,
             first_name=form.first_name.data,
             last_name=form.last_name.data,
             phone=form.phone.data,
-            role=form.role.data,
+            role=role,
         )
         user.set_password(form.password.data)
         db.session.add(user)
-        db.session.flush()  # Get user.id before creating child record
+        db.session.flush()  # Obtain user.id before creating child record
 
-        if form.role.data == 'student':
+        if role == 'student':
             student = Student(
                 user_id=user.id,
                 date_of_birth=form.date_of_birth.data,
                 guardian_phone=form.guardian_phone.data,
                 notes=form.notes.data,
+                school_name=form.school_name.data.strip(),
+                grade=form.grade.data.strip(),
             )
             db.session.add(student)
-        elif form.role.data == 'instructor':
+        elif role == 'instructor':
             instructor = Instructor(
                 user_id=user.id,
                 specialization=form.specialization.data,
@@ -88,7 +109,7 @@ def create_user():
             db.session.add(instructor)
 
         db.session.commit()
-        flash(f'User {user.full_name} ({user.role}) created successfully.', 'success')
+        flash(f'User {user.full_name} ({role}) created successfully.', 'success')
         return redirect(url_for('admin.list_users'))
 
     return render_template('admin/users/create.html', form=form)

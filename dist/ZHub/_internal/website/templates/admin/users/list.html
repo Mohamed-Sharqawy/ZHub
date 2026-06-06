@@ -27,7 +27,7 @@
             <tr class="{{ 'table-secondary' if not user.is_active else '' }}">
                 <td>{{ user.id }}</td>
                 <td>{{ user.full_name }}</td>
-                <td>{{ user.email }}</td>
+                <td>{{ user.email or '—' }}</td>
                 <td>
                     <span class="badge bg-{{ 'danger' if user.role == 'admin' else ('primary' if user.role == 'instructor' else 'success') }}">
                         {{ user.role|capitalize }}

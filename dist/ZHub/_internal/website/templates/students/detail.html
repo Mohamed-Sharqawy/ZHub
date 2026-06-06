@@ -67,7 +67,7 @@
                         <i class="bi bi-person-circle display-1 text-secondary"></i>
                         {% endif %}
                         <h5 class="mt-3 mb-0">{{ student.user.full_name }}</h5>
-                        <p class="text-muted small">{{ student.user.email }}</p>
+                        <p class="text-muted small">{{ student.user.email or '—' }}</p>
                         {% if student.is_minor %}
                         <span class="badge bg-warning text-dark mb-2">Minor</span>
                         {% endif %}
@@ -137,7 +137,7 @@
                                         {% if student.is_minor %}<span class="badge bg-warning text-dark ms-1">Minor</span>{% endif %}
                                     </td></tr>
                                     <tr><th>Nationality</th><td>{{ student.nationality or '—' }}</td></tr>
-                                    <tr><th>Email</th><td>{{ student.user.email }}</td></tr>
+                                    <tr><th>Email</th><td>{{ student.user.email or '—' }}</td></tr>
                                     <tr><th>Phone</th><td>{{ student.user.phone or '—' }}</td></tr>
                                 </table>
                             </div>

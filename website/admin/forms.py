@@ -4,7 +4,7 @@ from wtforms.validators import DataRequired, Email, Optional, EqualTo, Length
 
 
 class UserCreateForm(FlaskForm):
-    email = StringField('Email', validators=[DataRequired(), Email()])
+    email = StringField('Email', validators=[Optional(), Email()])
     first_name = StringField('First Name', validators=[DataRequired()])
     last_name = StringField('Last Name', validators=[DataRequired()])
     phone = StringField('Phone', validators=[Optional()])
@@ -20,6 +20,10 @@ class UserCreateForm(FlaskForm):
     date_of_birth = DateField('Date of Birth', validators=[Optional()])
     guardian_phone = StringField('Guardian Phone', validators=[Optional()])
     notes = TextAreaField('Notes', validators=[Optional()])
+
+    # Student-specific education fields (shown conditionally)
+    school_name = StringField('School Name', validators=[Optional(), Length(max=200)])
+    grade = StringField('Grade / Year', validators=[Optional(), Length(max=50)])
 
     # Instructor-specific (shown conditionally)
     specialization = StringField('Specialization', validators=[Optional()])

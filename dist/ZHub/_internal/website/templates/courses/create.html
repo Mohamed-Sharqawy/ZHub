@@ -70,22 +70,89 @@
 
                     <div id="schedule-rows">
                         {% for entry in form.schedules %}
-                        <div class="schedule-row row g-2 mb-2 align-items-center">
-                            <div class="col-md-4">
+                        <div class="schedule-row row g-2 mb-2 align-items-start">
+                            <!-- Day of week -->
+                            <div class="col-md-3">
+                                <label class="form-label mb-1 small text-muted">Day</label>
                                 {{ entry.weekday(class_="form-select schedule-weekday") }}
                             </div>
-                            <div class="col-md-3">
-                                <input type="text" name="{{ entry.start_time.name }}"
-                                       value="{{ entry.start_time.data or '' }}"
-                                       class="form-control schedule-start" placeholder="Start HH:MM (24h)">
+
+                            <!-- Start time: hour + minutes + AM/PM -->
+                            <div class="col-md-4">
+                                <label class="form-label mb-1 small text-muted">Start Time</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="number"
+                                           min="1" max="12"
+                                           class="form-control schedule-hour-start"
+                                           placeholder="H"
+                                           style="max-width:58px;">
+                                    <select class="form-select schedule-min-start" style="max-width:80px;">
+                                        <option value="00">:00</option>
+                                        <option value="05">:05</option>
+                                        <option value="10">:10</option>
+                                        <option value="15">:15</option>
+                                        <option value="20">:20</option>
+                                        <option value="25">:25</option>
+                                        <option value="30">:30</option>
+                                        <option value="35">:35</option>
+                                        <option value="40">:40</option>
+                                        <option value="45">:45</option>
+                                        <option value="50">:50</option>
+                                        <option value="55">:55</option>
+                                    </select>
+                                    <select class="form-select schedule-ampm-start">
+                                        <option value="AM">AM</option>
+                                        <option value="PM">PM</option>
+                                    </select>
+                                </div>
+                                <!-- Hidden field: WTForms name, HH:MM 24h value,
+                                     read by JS recompute and submitted to server -->
+                                <input type="hidden"
+                                       name="{{ entry.start_time.name }}"
+                                       class="schedule-start"
+                                       value="{{ entry.start_time.data or '' }}">
                             </div>
-                            <div class="col-md-3">
-                                <input type="text" name="{{ entry.end_time.name }}"
-                                       value="{{ entry.end_time.data or '' }}"
-                                       class="form-control schedule-end" placeholder="End HH:MM (24h)">
+
+                            <!-- End time: hour + minutes + AM/PM -->
+                            <div class="col-md-4">
+                                <label class="form-label mb-1 small text-muted">End Time</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="number"
+                                           min="1" max="12"
+                                           class="form-control schedule-hour-end"
+                                           placeholder="H"
+                                           style="max-width:58px;">
+                                    <select class="form-select schedule-min-end" style="max-width:80px;">
+                                        <option value="00">:00</option>
+                                        <option value="05">:05</option>
+                                        <option value="10">:10</option>
+                                        <option value="15">:15</option>
+                                        <option value="20">:20</option>
+                                        <option value="25">:25</option>
+                                        <option value="30">:30</option>
+                                        <option value="35">:35</option>
+                                        <option value="40">:40</option>
+                                        <option value="45">:45</option>
+                                        <option value="50">:50</option>
+                                        <option value="55">:55</option>
+                                    </select>
+                                    <select class="form-select schedule-ampm-end">
+                                        <option value="AM">AM</option>
+                                        <option value="PM">PM</option>
+                                    </select>
+                                </div>
+                                <!-- Hidden field: WTForms name, HH:MM 24h value,
+                                     read by JS recompute and submitted to server -->
+                                <input type="hidden"
+                                       name="{{ entry.end_time.name }}"
+                                       class="schedule-end"
+                                       value="{{ entry.end_time.data or '' }}">
                             </div>
-                            <div class="col-md-2">
-                                <button type="button" class="btn btn-outline-danger btn-sm remove-schedule-row">
+
+                            <!-- Remove row button -->
+                            <div class="col-md-1 d-flex align-items-end pb-1">
+                                <button type="button"
+                                        class="btn btn-outline-danger btn-sm remove-schedule-row">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>

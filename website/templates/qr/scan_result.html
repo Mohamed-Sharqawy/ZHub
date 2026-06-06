@@ -15,7 +15,7 @@
                     <div class="card-body text-center">
                         <i class="bi bi-qr-code-scan display-1 text-primary mb-3"></i>
                         <h3>{{ student.user.full_name }}</h3>
-                        <p class="text-muted">{{ student.user.email }}</p>
+                        <p class="text-muted">{{ student.user.email or '—' }}</p>
 
                         {% if student.qr_image_path %}
                         <img src="{{ url_for('serve_data_file', filename=student.qr_image_path) }}" alt="QR Code" class="img-fluid mb-3" style="max-width: 150px;">
